@@ -21,7 +21,6 @@ public class App {
 
         // Admin Configs
         Map<String, Object> configs = new HashMap<>();
-//        configs.put("bootstrap.servers", "localhost:9092"); --> use this if running in container
         configs.put("bootstrap.servers", brokerAddress);
         configs.put("metadata.recovery.strategy", "NONE");
 
