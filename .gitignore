@@ -1,0 +1,35 @@
+### Java ###
+*.class
+*.log
+*.out
+
+# Package files
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+### Maven ###
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+
+# Maven wrapper (keep the JAR!)
+.mvn/timing.properties
+
+### IDE (IntelliJ) ###
+.idea/
+*.iws
+*.iml
+*.ipr
+
+### OS ###
+.DS_Store
