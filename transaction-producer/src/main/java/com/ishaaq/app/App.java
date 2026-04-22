@@ -22,7 +22,7 @@ public class App {
         // Admin Configs
         Map<String, Object> configs = new HashMap<>();
 //        configs.put("bootstrap.servers", "localhost:9092"); --> use this if running in container
-        configs.put("bootstrap.servers", "broker:9093");
+        configs.put("bootstrap.servers", brokerAddress);
         configs.put("metadata.recovery.strategy", "NONE");
 
 
@@ -38,7 +38,7 @@ public class App {
 
         // Producer configurations
         Map<String, Object> producerConfigs = new HashMap<>();
-        producerConfigs.put("bootstrap.servers", "broker:9093");
+        producerConfigs.put("bootstrap.servers", brokerAddress);
         producerConfigs.put("linger.ms", 1);
         producerConfigs.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         producerConfigs.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
