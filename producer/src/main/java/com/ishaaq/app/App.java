@@ -61,7 +61,7 @@ public class App {
             // Upload transaction to partition
             myProducer.sendMessage(key, payload, topicName);
 
-            Thread.sleep(5000);
+            Thread.sleep(1000);
         }
 
     }
