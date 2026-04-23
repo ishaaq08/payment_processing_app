@@ -6,8 +6,10 @@ public class BrokerConfig {
     public BrokerConfig() {
         String brokerAddressEnv = System.getenv("BROKER_ADDRESS");
         if (brokerAddressEnv != null) {
-            System.out.println("--> Successfully retrieved environment variable BROKER_ADDRESS");
-            System.out.println("--> access via the instance variable brokerAddress");
+            // non-docker --> localhost:9092
+            // docker --> broker:9093
+            System.out.println("== Successfully creating BrokerConfig instance ==");
+            System.out.println("--> updating brokerAddress with the value of the environment variable");
             this.brokerAddress = brokerAddressEnv;
         } else {
             throw new RuntimeException("The environment variable BROKER_ADDRESS has not been set. This is required when " +
