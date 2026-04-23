@@ -9,15 +9,8 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 public class App {
     public static void main(String[] args) throws InterruptedException {
         // Access environment variable for broker_address
-        final String brokerAddress = System.getenv("BROKER_ADDRESS");
-        if (brokerAddress != null) {
-            // Script ran directly = localhost:9092
-            // Script ran via docker = broker:9093
-            System.out.println("--> Successfully retrieved environment variable BROKER_ADDRESS: " + brokerAddress);
-        } else {
-            throw new RuntimeException("The environment variable BROKER_ADDRESS has not been set. This is required when " +
-                    "connecting to the Kafka cluster. Please set the environment variable then try again.");
-        }
+        BrokerConfig appBrokerConfig = new BrokerConfig();
+        String brokerAddress = appBrokerConfig.getBrokerAddress();
 
         // Admin Configs
         Map<String, Object> configs = new HashMap<>();
