@@ -8,7 +8,7 @@ import java.util.HashMap;
 public class App {
     public static void main(String[] args) {
         // Define configs
-        HashMap<String, String> consumerConfigs = new HashMap<>();
+        HashMap<String, Object> consumerConfigs = new HashMap<>();
         consumerConfigs.put("bootstrap.servers", "localhost:9092");
         consumerConfigs.put("group.id", "test");
         consumerConfigs.put("enable.auto.commit", "true");
@@ -18,7 +18,9 @@ public class App {
         consumerConfigs.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         
         // Create consumer class and pass in configs
-        
+        AppConsumer myConsumer = new AppConsumer(consumerConfigs);
+
         // Call the consumeMessage method
+        myConsumer.consumeMessages();
     }
 }

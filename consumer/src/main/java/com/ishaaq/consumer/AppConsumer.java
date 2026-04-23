@@ -24,7 +24,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
         super.client = new KafkaConsumer<>(super.configs);
     }
 
-    public void consumeMessage() {
+    public void consumeMessages() {
         // How are partitions assigned in production?
         // For testing, we will just do manual assignment of partitions
         System.out.println("== Consuming message from partition ==");
