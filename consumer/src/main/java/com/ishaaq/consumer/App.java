@@ -1,5 +1,7 @@
 package com.ishaaq.consumer;
 
+import com.ishaaq.app.BrokerConfig;
+
 import java.util.HashMap;
 
 /**
@@ -7,9 +9,12 @@ import java.util.HashMap;
  */
 public class App {
     public static void main(String[] args) {
+        BrokerConfig myBrokerConfig = new BrokerConfig();
+        String brokerAddress = myBrokerConfig.getBrokerAddress();
+
         // Define configs
         HashMap<String, Object> consumerConfigs = new HashMap<>();
-        consumerConfigs.put("bootstrap.servers", "localhost:9092");
+        consumerConfigs.put("bootstrap.servers", brokerAddress);
         consumerConfigs.put("group.id", "test");
         consumerConfigs.put("enable.auto.commit", "true");
         consumerConfigs.put("auto.commit.interval.ms", "1000");
