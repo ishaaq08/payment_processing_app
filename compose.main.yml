@@ -27,3 +27,11 @@ services:
       dockerfile: Dockerfile
     depends_on:
     - broker
+
+  consumer:
+    container_name: consumer
+    build:
+      context: ./consumer
+      dockerfile: Dockerfile
+    depends_on:
+    -  broker
