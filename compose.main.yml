@@ -23,7 +23,7 @@ services:
   producer:
     container_name: producer
     build:
-      context: ./transaction-producer
+      context: ./producer
       dockerfile: Dockerfile
     depends_on:
     - broker
