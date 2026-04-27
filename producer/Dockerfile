@@ -1,5 +1,5 @@
 FROM eclipse-temurin:25
 WORKDIR /tmp
 ENV BROKER_ADDRESS=broker:9093
-COPY ./target/transaction-producer-1.0-SNAPSHOT.jar .
-CMD ["java", "-jar", "transaction-producer-1.0-SNAPSHOT.jar"]
+COPY ./target/producer-1.0-SNAPSHOT.jar .
+CMD ["java", "-jar", "producer-1.0-SNAPSHOT.jar"]
