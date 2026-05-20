@@ -27,40 +27,41 @@ public class DatabaseOps {
             int payee
 
         returns:
-            tuple(payee, payor)
-            OR
-            HashMap<1: 200, 2:300)
+            HashMap<payor_id: 200, payee_id:300)
 
-        process:
-            - define query
-            - pass the query into getPreparedStatement
-            - invoke the executeQuery() method on the prepared statement
-            - return the balance of the payee and payor
-
-            The key needs to be the userID
-
+        how the variable that calls this method will store the return value:
             payorCurrentBalance = HashMap.get(payorUserId)
             payeeCurrentBalance = HashMap.get(payeeUserId)
 
      */
 
-    public void getBalance(int payor_id) {
-        String sqlQuery = "SELECT balance FROM tbl_balance WHERE user_id = ?;";
-        ArrayList<Object> arguments = new ArrayList<>(Arrays.asList(5));
-        PreparedStatement pstmtGet = getPreparedStatement(sqlQuery, arguments);
+    public HashMap<Integer, Integer> getPayorAndPayeeBalance(int payor_id, int payee_id) {
+        String sqlQuery = "SELECT user_id, balance FROM tbl_balance WHERE user_id in (?, ?);";
+        ArrayList<Object> arguments = new ArrayList<>(Arrays.asList(payor_id, payee_id));
+        int payorCurrentBalance;
+        int payeeCurrentBalance;
+        HashMap<Integer, Integer> balances = new HashMap<>();
 
-        try (PreparedStatement pstmt = getPreparedStatement(sqlQuery, arguments);
-             ResultSet rs = pstmt.executeQuery()) {
+        try (
+            PreparedStatement pstmt = getPreparedStatement(sqlQuery, arguments);
+             ResultSet rs = pstmt.executeQuery()
+        ) {
 
             while (rs.next()) {
-                int payorBalance = rs.getInt(1);
-                System.out.println(payor_id + " has a balance of " + payorBalance);
+                int userId = rs.getInt("user_id");
+                int balance = rs.getInt("balance");
+                balances.put(userId, balance);
             }
 
         } catch (SQLException e) {
             e.printStackTrace();
             throw new RuntimeException("Error when performing database operations: " + e);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("An non-database error has occured: " + e);
         }
+
+        return balances;
 
     }
 

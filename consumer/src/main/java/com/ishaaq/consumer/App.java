@@ -38,7 +38,11 @@ public class App {
 
         DatabaseOps myDB = new DatabaseOps(props, url);
 
-        myDB.getBalance(8);
+        // These will be accessed from the consumer record as we iterate through ConsumerRecords
+        int payor_id = 8;
+        int payee_id = 2;
+
+        myDB.getPayorAndPayeeBalance(payor_id, payee_id);
 
         System.exit(0);
 
