@@ -49,18 +49,15 @@ public class DatabaseOps {
         ArrayList<Object> arguments = new ArrayList<>(Arrays.asList(5));
         PreparedStatement pstmtGet = getPreparedStatement(sqlQuery, arguments);
 
-        try {
-            ResultSet pstmtResults = pstmtGet.executeQuery();
+        try (PreparedStatement pstmt = getPreparedStatement(sqlQuery, arguments);
+             ResultSet rs = pstmt.executeQuery()) {
 
-            int payorBalance;
+            while (rs.next()) {
+                int payorBalance = rs.getInt(1);
+                System.out.println(payor_id + " has a balance of " + payorBalance);
+            }
 
-            while (pstmtResults.next()) {
-                payorBalance = pstmtResults.getInt(1);
-                System.out.println(payor_id + " has a balance of " + payorBalance);}
-
-            pstmtGet.close();
         } catch (SQLException e) {
-            System.out.println("This error originates from the executeQuery, next or getInt methods.");
             e.printStackTrace();
             throw new RuntimeException("Error when performing database operations: " + e);
         }
