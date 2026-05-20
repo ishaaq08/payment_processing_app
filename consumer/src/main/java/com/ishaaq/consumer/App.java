@@ -34,21 +34,15 @@ public class App {
         // Create consumer class and pass in configs
         AppConsumer myConsumer = new AppConsumer(consumerConfigs, databaseConfigs, databaseUrl);
 
-        System.exit(0);
-
 //        // Call the consumeMessage method
 //        myConsumer.consumeMessages();
-
 
         // These will be accessed from the consumer record as we iterate through ConsumerRecords
         int payor_id = 8;
         int payee_id = 2;
 
-//        HashMap<Integer, Integer> balances = myDB.getPayorAndPayeeBalance(payor_id, payee_id);
-//        int payorCurrentBalance = balances.get(payor_id);
-//        int payeeCurrentBalance = balances.get(payee_id);
-//        System.out.println("The current balance of the payor is " + payorCurrentBalance);
-//        System.out.println("The current balance of the payee is " + payeeCurrentBalance);
+        myConsumer.processMessage(payor_id, payee_id);
+
 
 
     }

@@ -8,6 +8,7 @@ import org.apache.kafka.common.TopicPartition;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
@@ -49,7 +50,12 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
 
     }
 
-    public void processMessage() {
-        // Method args: the whole record or a parsed version of the record?
+    public void processMessage(int payor_id, int payee_id) {
+        // 1) Get payor and payee balance
+        HashMap<Integer, Integer> balances = dbConn.getPayorAndPayeeBalance(payor_id, payee_id);
+        int payorCurrentBalance = balances.get(payor_id);
+        int payeeCurrentBalance = balances.get(payee_id);
+        System.out.println("The current balance of the payor is " + payorCurrentBalance);
+        System.out.println("The current balance of the payee is " + payeeCurrentBalance);
     }
 }
