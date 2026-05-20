@@ -1,10 +1,9 @@
 package com.ishaaq.consumer;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Properties;
+import org.javatuples.Pair;
 
 public class DatabaseOps {
     // Instance variables: all the below are private
@@ -44,19 +43,32 @@ public class DatabaseOps {
 
      */
 
-    /*
-    private METHOD: getPreparedStatement
+    private PreparedStatement getPreparedStatement(String sql, ArrayList<Object> sqlArgs ) {
+        PreparedStatement pstmtGet;
 
-        params:
-            String sqlString
-            Hashmap<Integer, Object> queryArgs: keys will be increasing integers
+        try{
+            pstmtGet = conn.prepareStatement(sql);
 
-         return:
-            PreparedStatement pstmt: the public methods (getPayorAndPayeeCurrentBalance
-    */
-//    private ResultSet getPreparedStatement(String sql, HashMap<Integer, Object> ) {
-//
-//    }
+            // Insert arguments into SQL query
+            for (int index = 0; index < sqlArgs.size(); index++) {
+                if (sqlArgs.get(index) instanceof Integer) {
+                    pstmtGet.setInt(index+1, (Integer) sqlArgs.get(index));
+                // Exclusively for the update transaction method
+                } else if (sqlArgs.get(index) instanceof String) {
+                    pstmtGet.setString(index+1, (String) sqlArgs.get(index));
+                }
+            }
+                pstmtGet.close();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error performing database operation", e);
+        } catch (Exception e) {
+            System.out.println("Some other error occurred");
+            throw new RuntimeException(e);
+        }
+        return pstmtGet;
+    }
 
     // private method: get connection
     private Connection getConn() {
