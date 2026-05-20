@@ -9,12 +9,17 @@ import org.apache.kafka.common.TopicPartition;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Properties;
 
 public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
+    // Required to pass into process().
+    // A single connection for a consumer, to re-use the same connections when processing records.
+    private DatabaseOps dbConn;
 
     // Constructor
-    public AppConsumer(Map<String, Object> configs) {
-        super(configs);
+    public AppConsumer(Map<String, Object> consumerConfigs, Properties databaseConfigs, String databaseUrl) {
+        super(consumerConfigs);
+        dbConn = new DatabaseOps(databaseConfigs, databaseUrl);
     }
 
     // Abstract method override
@@ -37,9 +42,14 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
         while (true) {
             ConsumerRecords<String, String> records = super.client.poll(Duration.ofMillis(100));
             for (ConsumerRecord<String, String> record : records) {
+                // process() will be called here --> on each record in the batch
                 System.out.printf("%noffset = %d, key = %s, value = %s%n", record.offset(), record.key(), record.value());
             }
         }
 
+    }
+
+    public void processMessage() {
+        // Method args: the whole record or a parsed version of the record?
     }
 }
