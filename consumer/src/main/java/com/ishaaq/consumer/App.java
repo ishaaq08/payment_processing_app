@@ -1,5 +1,6 @@
 package com.ishaaq.consumer;
 
+import javax.xml.crypto.Data;
 import java.util.Properties;
 import java.sql.*;
 
@@ -34,6 +35,13 @@ public class App {
         Properties props = new Properties();
         props.setProperty("user", "postgres");
         props.setProperty("password", "superuser");
+
+        DatabaseOps myDB = new DatabaseOps(props, url);
+
+        myDB.getBalance(8);
+
+        System.exit(0);
+
 
         // All of these will be stored in the ConsumerRecord
         int amount = 400;

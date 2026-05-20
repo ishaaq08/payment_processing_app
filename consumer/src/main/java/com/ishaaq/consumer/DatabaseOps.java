@@ -1,6 +1,7 @@
 package com.ishaaq.consumer;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Properties;
 import org.javatuples.Pair;
@@ -43,6 +44,29 @@ public class DatabaseOps {
 
      */
 
+    public void getBalance(int payor_id) {
+        String sqlQuery = "SELECT balance FROM tbl_balance WHERE user_id = ?;";
+        ArrayList<Object> arguments = new ArrayList<>(Arrays.asList(5));
+        PreparedStatement pstmtGet = getPreparedStatement(sqlQuery, arguments);
+
+        try {
+            ResultSet pstmtResults = pstmtGet.executeQuery();
+
+            int payorBalance;
+
+            while (pstmtResults.next()) {
+                payorBalance = pstmtResults.getInt(1);
+                System.out.println(payor_id + " has a balance of " + payorBalance);}
+
+            pstmtGet.close();
+        } catch (SQLException e) {
+            System.out.println("This error originates from the executeQuery, next or getInt methods.");
+            e.printStackTrace();
+            throw new RuntimeException("Error when performing database operations: " + e);
+        }
+
+    }
+
     private PreparedStatement getPreparedStatement(String sql, ArrayList<Object> sqlArgs ) {
         PreparedStatement pstmtGet;
 
@@ -58,7 +82,6 @@ public class DatabaseOps {
                     pstmtGet.setString(index+1, (String) sqlArgs.get(index));
                 }
             }
-                pstmtGet.close();
 
         } catch (SQLException e) {
             e.printStackTrace();
