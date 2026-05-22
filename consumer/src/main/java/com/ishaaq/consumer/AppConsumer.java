@@ -75,6 +75,10 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
         // if TRUE
         if (sufficient) {
             System.out.println("Payor has sufficient funds. Performing balance transfers");
+            int payorNewBalance = payorCurrentBalance - amount;
+            int payeeNewBalance = payeeCurrentBalance + amount;
+            dbConn.updateBalance(payor_id, payorNewBalance);
+            dbConn.updateBalance(payee_id, payeeNewBalance);
 
 
         }

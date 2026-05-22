@@ -54,6 +54,7 @@ public class DatabaseOps {
         ArrayList<Object> arguments = new ArrayList<>(Arrays.asList(userId, newBalance));
 
         PreparedStatement pstmt = getPreparedStatement(sqlQuery, arguments);
+        // Should we do anything with this result?
         int updateResult;
 
         try{
