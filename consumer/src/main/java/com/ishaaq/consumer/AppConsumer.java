@@ -50,12 +50,39 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
 
     }
 
-    public void processMessage(int payor_id, int payee_id) {
-        // 1) Get payor and payee balance
+    public void processMessage(int payor_id, int payee_id, int amount) {
+        System.out.println("== Processing partition message ==");
+        // Update DatabaseOps so that by defualt auto commit is set to false
+
+        // Check if the transaction already exists in the database
+
+            // FALSE --> Skip this record
+
+            // TRUE --> Get payor and payee balance
         HashMap<Integer, Integer> balances = dbConn.getPayorAndPayeeBalance(payor_id, payee_id);
         int payorCurrentBalance = balances.get(payor_id);
         int payeeCurrentBalance = balances.get(payee_id);
         System.out.println("The current balance of the payor is " + payorCurrentBalance);
         System.out.println("The current balance of the payee is " + payeeCurrentBalance);
+
+            // Check if the payor has sufficient balance i.e. compare to transaction
+        boolean sufficient = payorCurrentBalance > amount;
+        System.out.println("Does the payor have sufficient funds: " + sufficient);
+
+            // BEGINNING OF DATABASE TRANSACTION
+        // 4) Insert transaction into tbl_transaction
+
+        // if TRUE
+        if (sufficient) {
+            System.out.println("Payor has sufficient funds. Performing balance transfers");
+
+
+        }
+            // Update payor balance
+            // Update payee balance
+            // Update transaction status
+        // if FALSE
+            // 6) Update transaction status
+        // END OF DATABASE TRANSACTION i.e. commit
     }
 }

@@ -18,9 +18,11 @@ public class DatabaseOps {
         this.conn = getConn();
     }
 
-    public HashMap<Integer, Integer> getPayorAndPayeeBalance(int payor_id, int payee_id) {
+    // ====== PUBLIC METHODS ======
+
+    public HashMap<Integer, Integer> getPayorAndPayeeBalance(int payorId, int payeeId) {
         String sqlQuery = "SELECT user_id, balance FROM tbl_balance WHERE user_id in (?, ?);";
-        ArrayList<Object> arguments = new ArrayList<>(Arrays.asList(payor_id, payee_id));
+        ArrayList<Object> arguments = new ArrayList<>(Arrays.asList(payorId, payeeId));
         HashMap<Integer, Integer> balances = new HashMap<>();
 
         try (
@@ -45,6 +47,27 @@ public class DatabaseOps {
         return balances;
 
     }
+
+    public void updateBalance(int userId, int newBalance) {
+        System.out.println("== Updating user balance ==");
+        String sqlQuery = "UPDATE tbl_balance SET balance = ? WHERE user_id = ?;";
+        ArrayList<Object> arguments = new ArrayList<>(Arrays.asList(userId, newBalance));
+
+        PreparedStatement pstmt = getPreparedStatement(sqlQuery, arguments);
+        int updateResult;
+
+        try{
+            updateResult = pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error performing database operation", e);
+        }
+
+        System.out.println("--> Successfully updated balance of " + userId + " to " + newBalance);
+
+    }
+
+    // ====== PRIVATE METHODS ======
 
     private PreparedStatement getPreparedStatement(String sql, ArrayList<Object> sqlArgs ) {
         PreparedStatement pstmtGet;
