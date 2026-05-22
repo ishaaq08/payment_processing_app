@@ -1,9 +1,6 @@
 package com.ishaaq.consumer;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Properties;
+import java.util.*;
 
 public class DatabaseOps {
     // Instance variables: all the below are private
@@ -48,13 +45,23 @@ public class DatabaseOps {
 
     }
 
-    public void updateBalance(int userId, int newBalance) {
-        System.out.println("== Updating user balance ==");
-        String sqlQuery = "UPDATE tbl_balance SET balance = ? WHERE user_id = ?;";
-        ArrayList<Object> arguments = new ArrayList<>(Arrays.asList(userId, newBalance));
+    public void performUpdate(String table, int newValue, int rowId) {
+        System.out.println("== Performing update on table " + table + " ==");
+        String sqlQuery = "";
+
+        // VALIDATION: check if table is equal to tbl_balance OR tbl_transactions
+
+        if (Objects.equals(table, "tbl_balance")) {
+            sqlQuery = "UPDATE ? SET balance = ? WHERE user_id = ?;";
+        } else if (Objects.equals(table, "tbl_transactions")) {
+            sqlQuery = "UPDATE ? SET status = ? WHERE transaction_id = ?;";
+        }
+
+        // String sqlQuery2 = "UPDATE tbl_transactions SET status = ? WHERE transaction_id = ?;";
+        ArrayList<Object> arguments = new ArrayList<>(Arrays.asList(table, newValue, rowId));
 
         PreparedStatement pstmt = getPreparedStatement(sqlQuery, arguments);
-        // Should we do anything with this result?
+        // Use this result to check if the update has been performed i.e. if the result is equals to 0
         int updateResult;
 
         try{
@@ -64,7 +71,7 @@ public class DatabaseOps {
             throw new RuntimeException("Error performing database operation", e);
         }
 
-        System.out.println("--> Successfully updated balance of " + userId + " to " + newBalance);
+        System.out.println("--> Successfully updated table " + table + " where rowId equals " + rowId);
 
     }
 

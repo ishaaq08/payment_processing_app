@@ -50,7 +50,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
 
     }
 
-    public void processMessage(int payor_id, int payee_id, int amount) {
+    public void processMessage(int payorId, int payeeId, int amount) {
         System.out.println("== Processing partition message ==");
         // Update DatabaseOps so that by defualt auto commit is set to false
 
@@ -59,32 +59,32 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
             // FALSE --> Skip this record
 
             // TRUE --> Get payor and payee balance
-        HashMap<Integer, Integer> balances = dbConn.getPayorAndPayeeBalance(payor_id, payee_id);
-        int payorCurrentBalance = balances.get(payor_id);
-        int payeeCurrentBalance = balances.get(payee_id);
-        System.out.println("The current balance of the payor is " + payorCurrentBalance);
-        System.out.println("The current balance of the payee is " + payeeCurrentBalance);
+        HashMap<Integer, Integer> balances = dbConn.getPayorAndPayeeBalance(payorId, payeeId);
+        int payorCurrentBalance = balances.get(payorId);
+        int payeeCurrentBalance = balances.get(payeeId);
+        System.out.println("--> the current balance of the payor is " + payorCurrentBalance);
+        System.out.println("--> the current balance of the payee is " + payeeCurrentBalance);
 
             // Check if the payor has sufficient balance i.e. compare to transaction
         boolean sufficient = payorCurrentBalance > amount;
-        System.out.println("Does the payor have sufficient funds: " + sufficient);
+        System.out.println("--> does the payor have sufficient funds: " + sufficient);
 
             // BEGINNING OF DATABASE TRANSACTION
         // 4) Insert transaction into tbl_transaction
 
         // if TRUE
         if (sufficient) {
-            System.out.println("Payor has sufficient funds. Performing balance transfers");
+            // Insert transaction
+
+            // Updates
+            System.out.println("--> performing balance transfers");
             int payorNewBalance = payorCurrentBalance - amount;
             int payeeNewBalance = payeeCurrentBalance + amount;
-            dbConn.updateBalance(payor_id, payorNewBalance);
-            dbConn.updateBalance(payee_id, payeeNewBalance);
+            dbConn.performUpdate("tbl_balance", payorNewBalance, payorId);
+            dbConn.performUpdate("tbl_balance", payeeNewBalance, payeeId);
 
 
         }
-            // Update payor balance
-            // Update payee balance
-            // Update transaction status
         // if FALSE
             // 6) Update transaction status
         // END OF DATABASE TRANSACTION i.e. commit
