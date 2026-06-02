@@ -52,13 +52,12 @@ public class DatabaseOps {
         // VALIDATION: check if table is equal to tbl_balance OR tbl_transactions
 
         if (Objects.equals(table, "tbl_balance")) {
-            sqlQuery = "UPDATE ? SET balance = ? WHERE user_id = ?;";
+            sqlQuery = "UPDATE tbl_balance SET balance = ? WHERE user_id = ?;";
         } else if (Objects.equals(table, "tbl_transactions")) {
-            sqlQuery = "UPDATE ? SET status = ? WHERE transaction_id = ?;";
+            sqlQuery = "UPDATE tbl_transactions SET status = ? WHERE transaction_id = ?;";
         }
 
-        // String sqlQuery2 = "UPDATE tbl_transactions SET status = ? WHERE transaction_id = ?;";
-        ArrayList<Object> arguments = new ArrayList<>(Arrays.asList(table, newValue, rowId));
+        ArrayList<Object> arguments = new ArrayList<>(Arrays.asList(newValue, rowId));
 
         PreparedStatement pstmt = getPreparedStatement(sqlQuery, arguments);
         // Use this result to check if the update has been performed i.e. if the result is equals to 0
@@ -86,12 +85,18 @@ public class DatabaseOps {
             // Insert arguments into SQL query
             for (int index = 0; index < sqlArgs.size(); index++) {
                 if (sqlArgs.get(index) instanceof Integer) {
+                    System.out.println("--> integer: " + sqlArgs.get(index) );
                     pstmtGet.setInt(index+1, (Integer) sqlArgs.get(index));
                 // Exclusively for the update transaction method
                 } else if (sqlArgs.get(index) instanceof String) {
+                    System.out.println("--> string: " + sqlArgs.get(index) );
                     pstmtGet.setString(index+1, (String) sqlArgs.get(index));
                 }
             }
+
+            // debugging
+            System.out.println(pstmtGet);
+
 
         } catch (SQLException e) {
             e.printStackTrace();
@@ -100,6 +105,8 @@ public class DatabaseOps {
             System.out.println("Some other error occurred");
             throw new RuntimeException(e);
         }
+
+
         return pstmtGet;
     }
 
