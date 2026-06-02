@@ -58,12 +58,10 @@ public class DatabaseOps {
 
         ArrayList<Object> arguments = new ArrayList<>(Arrays.asList(newValue, rowId));
 
-        PreparedStatement pstmt = getPreparedStatement(sqlQuery, arguments);
-        // Use this result to check if the update has been performed i.e. if the result is equals to 0
-        int updateResult;
-
-        try{
+        try (PreparedStatement pstmt = getPreparedStatement(sqlQuery, arguments);){
+            int updateResult;
             updateResult = pstmt.executeUpdate();
+
         } catch (SQLException e) {
             e.printStackTrace();
             throw new RuntimeException("Error performing database operation executeUpdate()", e);
