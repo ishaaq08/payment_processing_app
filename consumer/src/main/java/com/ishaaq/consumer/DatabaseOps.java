@@ -49,8 +49,7 @@ public class DatabaseOps {
         System.out.println("== Performing update on table " + table + " ==");
         String sqlQuery = "";
 
-        // VALIDATION: check if table is equal to tbl_balance OR tbl_transactions
-
+        // VALIDATION: Not a fan of the manual definition of tables in sqlQuery. Not scalable
         if (Objects.equals(table, "tbl_balance")) {
             sqlQuery = "UPDATE tbl_balance SET balance = ? WHERE user_id = ?;";
         } else if (Objects.equals(table, "tbl_transactions")) {
@@ -67,7 +66,7 @@ public class DatabaseOps {
             updateResult = pstmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
-            throw new RuntimeException("Error performing database operation", e);
+            throw new RuntimeException("Error performing database operation executeUpdate()", e);
         }
 
         System.out.println("--> Successfully updated table " + table + " where rowId equals " + rowId);
