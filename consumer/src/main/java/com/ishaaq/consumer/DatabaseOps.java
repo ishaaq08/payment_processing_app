@@ -66,9 +66,34 @@ public class DatabaseOps {
             e.printStackTrace();
             throw new RuntimeException("Error performing database operation executeUpdate()", e);
         }
-
         System.out.println("--> Successfully updated table " + table + " where rowId equals " + rowId);
 
+    }
+
+    public void insertTransaction(int payor, int payee, int amount, String transactionId, String status) {
+        System.out.println("== inserting transaction into db ==");
+
+        // Define SQL query
+        String sqlQuery = "INSERT INTO tbl_transactions(transaction_id, payor, payee, amount, status) VALUES (?,?,?,?,?);";
+
+        // SQL query arguments
+        ArrayList<Object> arguments = new ArrayList<>(Arrays.asList(transactionId, payor, payee, amount, status));
+
+        // try-with-resources
+        try (PreparedStatement pstmt = getPreparedStatement(sqlQuery, arguments);) {
+            int updateResult = pstmt.executeUpdate();
+
+            // Validate the update
+            if (updateResult ==1) {
+                System.out.printf("--> successfully inserted transaction %s%n", transactionId);
+            } else {
+                throw new RuntimeException("Encountered issue during executeUpdate(). Expected 1 to be returned.");
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error performing database operation executeUpdate()", e);
+        }
     }
 
     // ====== PRIVATE METHODS ======
@@ -82,11 +107,9 @@ public class DatabaseOps {
             // Insert arguments into SQL query
             for (int index = 0; index < sqlArgs.size(); index++) {
                 if (sqlArgs.get(index) instanceof Integer) {
-                    System.out.println("--> integer: " + sqlArgs.get(index) );
                     pstmtGet.setInt(index+1, (Integer) sqlArgs.get(index));
                 // Exclusively for the update transaction method
                 } else if (sqlArgs.get(index) instanceof String) {
-                    System.out.println("--> string: " + sqlArgs.get(index) );
                     pstmtGet.setString(index+1, (String) sqlArgs.get(index));
                 }
             }
@@ -109,9 +132,11 @@ public class DatabaseOps {
 
     // private method: get connection
     private Connection getConn() {
-        System.out.println("--> Generating connection to DB");
+        System.out.println("--> ℹ️ Generating connection to DB");
         try{
             conn = DriverManager.getConnection(url, info);
+            System.out.println("--> setting auto commit to false");
+            conn.setAutoCommit(false);
         } catch (SQLException e){
             e.printStackTrace();
             throw new RuntimeException("Database access error. Not due to null url as this is checked via constructor", e);

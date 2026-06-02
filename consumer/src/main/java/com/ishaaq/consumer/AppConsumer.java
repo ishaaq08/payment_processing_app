@@ -6,6 +6,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 
+import java.sql.SQLException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,7 +52,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
     }
 
     // Eventually this class will receive the entire payload of the event
-    public void processMessage(int payorId, int payeeId, int amount) {
+    public void processMessage(int payorId, int payeeId, int amount, String transactionId) {
         System.out.println("== Processing partition message ==");
         // Update DatabaseOps so that by defualt auto commit is set to false
 
@@ -77,24 +78,33 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
         // try
         // == BEGINNING OF DATABASE TRANSACTION ==
 
-        if (sufficient) {
-            // User has sufficient funds
-            // Update balances
-            System.out.println("--> performing balance transfers");
-            int payorNewBalance = payorCurrentBalance - amount;
-            int payeeNewBalance = payeeCurrentBalance + amount;
-            dbConn.performUpdate("tbl_balance", payorNewBalance, payorId);
-            dbConn.performUpdate("tbl_balance", payeeNewBalance, payeeId);
+        try {
+            if (sufficient) {
+                // User has sufficient funds
+                // Update balances
+                System.out.println("--> performing balance transfers");
+                int payorNewBalance = payorCurrentBalance - amount;
+                int payeeNewBalance = payeeCurrentBalance + amount;
+                dbConn.performUpdate("tbl_balance", payorNewBalance, payorId);
+                dbConn.performUpdate("tbl_balance", payeeNewBalance, payeeId);
 
-            // Insert transaction with "ACCEPTED" status
+                // Insert transaction with "ACCEPTED" status
+                dbConn.insertTransaction(payorId, payeeId, amount, transactionId, "ACCEPTED");
 
-        } else {
-            // User has insufficient funds and no balance updates required
-            // Insert transaction with "DENIED" status
+            } else {
+                // User has insufficient funds and no balance updates required
+                // Insert transaction with "DENIED" status
+                dbConn.insertTransaction(payorId, payeeId, amount, transactionId, "DENIED");
+            }
+
+            // commit transaction --> now it is written to the database
+            // commit offset
+        } catch (SQLException e) {
+
         }
 
-        // commit transaction --> now it is written to the database
-        // commit offset
+
+
 
         // catch
         // -- this will catch the RuntimeExceptions that is thrown by the DatabaseOps methods
