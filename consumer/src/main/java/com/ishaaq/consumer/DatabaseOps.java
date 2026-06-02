@@ -96,6 +96,16 @@ public class DatabaseOps {
         }
     }
 
+    public void commitTransaction() {
+        System.out.println("--> ℹ️ comitting transaction to database");
+        
+        try {
+            conn.commit();
+        } catch (SQLException e) {
+            throw new RuntimeException("Error when committing transaction. This can occur due to a variety of reasons", e);
+        }
+    }
+
     // ====== PRIVATE METHODS ======
 
     private PreparedStatement getPreparedStatement(String sql, ArrayList<Object> sqlArgs ) {
