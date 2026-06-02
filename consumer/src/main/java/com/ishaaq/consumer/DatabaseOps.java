@@ -97,10 +97,20 @@ public class DatabaseOps {
     }
 
     public void commitTransaction() {
-        System.out.println("--> ℹ️ comitting transaction to database");
-        
+        System.out.println("--> ℹ️ committing transaction");
+
         try {
             conn.commit();
+        } catch (SQLException e) {
+            throw new RuntimeException("Error when committing transaction. This can occur due to a variety of reasons", e);
+        }
+    }
+
+    public void rollbackTransaction() {
+        System.out.println("--> ℹ️ rolling back transaction");
+
+        try {
+            conn.rollback();
         } catch (SQLException e) {
             throw new RuntimeException("Error when committing transaction. This can occur due to a variety of reasons", e);
         }
