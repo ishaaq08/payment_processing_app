@@ -68,16 +68,13 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
         HashMap<Integer, Integer> balances = dbConn.getPayorAndPayeeBalance(payorId, payeeId);
         int payorCurrentBalance = balances.get(payorId);
         int payeeCurrentBalance = balances.get(payeeId);
-        System.out.println("--> the current balance of the payor is " + payorCurrentBalance);
-        System.out.println("--> the current balance of the payee is " + payeeCurrentBalance);
+        System.out.printf("payor balance: %s, payee balance: %s%n", payorCurrentBalance, payeeCurrentBalance);
 
         // Check if the payor has sufficient balance i.e. compare to transaction
         boolean sufficient = payorCurrentBalance > amount;
         System.out.println("--> does the payor have sufficient funds: " + sufficient);
 
-        // try
         // == BEGINNING OF DATABASE TRANSACTION ==
-
         try {
             if (sufficient) {
                 // User has sufficient funds
@@ -97,19 +94,20 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
                 dbConn.insertTransaction(payorId, payeeId, amount, transactionId, "DENIED");
             }
 
-            // commit transaction --> now it is written to the database
-            // commit offset
-        } catch (SQLException e) {
+            // == END OF DB TRANSACTION ==
+            dbConn.commitTransaction();
+            // to-add: commit partition offset
 
+            System.out.println("✅ Successfully processed messaged: db transaction and partition offset comnitted.");
+
+        } catch (Exception e) {
+            // The method performUpdate() and insertTransaction() will catch a SQLException. They will throw a RuntimeException
+            // ... which will be caught here. We can't explicitly specify a SQLException in this catch block because none of
+            // ... the above logic throws it
+            dbConn.rollbackTransaction();
+            throw new RuntimeException("Encountered exception when processing message", e);
         }
+        // Later we can close the connection - no need to add right now
 
-
-
-
-        // catch
-        // -- this will catch the RuntimeExceptions that is thrown by the DatabaseOps methods
-        // -- connection.rollback()
-        // finally
-        // -- connection.close() --> not in scope right now
     }
 }

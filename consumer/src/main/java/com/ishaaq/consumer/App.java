@@ -41,7 +41,7 @@ public class App {
         int payor_id = 8;
         int payee_id = 2;
         int amount = 50;
-        String transactionId = "transaction-1";
+        String transactionId = "transaction-2";
 
         myConsumer.processMessage(payor_id, payee_id, amount, transactionId);
 
