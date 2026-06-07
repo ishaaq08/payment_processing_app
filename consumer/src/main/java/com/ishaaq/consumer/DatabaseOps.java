@@ -96,6 +96,52 @@ public class DatabaseOps {
         }
     }
 
+    public boolean transactionExists(String transactionId) {
+        /*
+        Query tbl_transactions using transactionId
+
+        check if the amount of records returned is equal to 1
+            --> rs.next should be true
+
+            NOTE:Impossible for more than 1 record to be returned as this field is the PK
+            1 record: Transaction has been committed. But system must have failed before committing partition offset.
+            a) Commit partition offset b) return True
+
+            0 records: a) return False
+         */
+        System.out.printf("== checking if transaction exists: %s ==%n", transactionId);
+
+        // Define SQL query
+        String sqlQuery = "SELECT * FROM tbl_transactions WHERE transaction_id = ?;";
+
+        // SQL query arguments
+        ArrayList<Object> arguments = new ArrayList<>(Arrays.asList(transactionId));
+
+        try (
+                PreparedStatement pstmt = getPreparedStatement(sqlQuery, arguments);
+                ResultSet rs = pstmt.executeQuery()
+        ) {
+
+            if (rs.next()) {
+                System.out.println("--> ✅ transaction exists.");
+                return true;
+            } else {
+                System.out.printf("--> transaction: %s does not exist.%n");
+                return false;
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error when performing database operations: " + e);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("An non-database error has occurred: " + e);
+        }
+
+    }
+
+    // == TRANSACTION MANAGEMENT ==
+
     public void commitTransaction() {
         System.out.println("--> ℹ️ committing transaction");
 
