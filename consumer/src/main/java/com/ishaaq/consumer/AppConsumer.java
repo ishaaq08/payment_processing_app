@@ -18,13 +18,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
-    // Required to pass into process().
     // A single connection for a consumer, to re-use the same connections when processing records.
     private DatabaseOps dbConn;
-    private ObjectMapper objectMapper;
+    private ObjectMapper objectMapper = new ObjectMapper();;
     private record RecordDetails(int payorId, int payeeId, int amount, String transactionId) {};
 
-    // Constructor
     public AppConsumer(Map<String, Object> consumerConfigs, Properties databaseConfigs, String databaseUrl) {
         super(consumerConfigs);
         dbConn = new DatabaseOps(databaseConfigs, databaseUrl);
@@ -98,12 +96,17 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
             throw new RuntimeException(e);
         }
 
-        return new RecordDetails(
+        RecordDetails recordDetails = new RecordDetails(
                 Integer.parseInt(payloadAsPaymentEvent.payor),
                 Integer.parseInt(payloadAsPaymentEvent.payee),
                 Integer.parseInt(payloadAsPaymentEvent.amount),
                 transactionId
         );
+
+        System.out.printf("--> offset %s: transaction %s : user %s transfers user %s an amount of £%s%n", record.offset(),
+                transactionId, recordDetails.payorId, recordDetails.payeeId, recordDetails.amount);
+
+        return recordDetails;
     }
 
     // Eventually this class will receive the entire payload of the event
