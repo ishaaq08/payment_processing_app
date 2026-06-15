@@ -22,6 +22,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
     // A single connection for a consumer, to re-use the same connections when processing records.
     private DatabaseOps dbConn;
     private ObjectMapper objectMapper;
+    private record RecordDetails(int payorId, int payeeId, int amount, String transactionId) {};
 
     // Constructor
     public AppConsumer(Map<String, Object> consumerConfigs, Properties databaseConfigs, String databaseUrl) {
@@ -53,36 +54,20 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
 
             // start timer
             for (ConsumerRecord<String, String> record : records) {
-                /*
-                Poll returns a batch of records - update to 50
+                System.out.printf("Processing offset: %s%n", record.offset());
 
-                For loop: Iterate through each record
+                // Extract message details
+                RecordDetails recordDetails = parseConsumerRecord(record);
 
-                    1) Extract message details
-                        Convert record.value which will be in JSON to a PaymentEvent object
-
-                    2) Type cast payorId, payeeId, amount to integer
-                        PaymentEvent requires strings for the args. But process requires int for payorId, payeeId, amount
-
-                    2) Process each message
-                        Call process(object.payor, object.payee, object.amount, record.key)
-
-                Exit for loop: end timer --> returns processing time for a batch of 200
-
-                Testing conditions:
-                    - Start Broker in container
-                    - Start producer locally
-                    - Wait for it to finish - this means 200 records have been uploaded
-                    - Start Consumer locally
-
-                 */
+                // Process message
+                processMessage(
+                        recordDetails.payorId,
+                        recordDetails.payeeId,
+                        recordDetails.amount,
+                        recordDetails.transactionId
+                );
 
 
-                processMessage(payloadAsPaymentEvent.payor, payloadAsPaymentEvent.payee, payloadAsPaymentEvent.amount, transactionId);
-
-
-                // process() will be called here --> on each record in the batch
-                System.out.printf("%noffset = %d, key = %s, value = %s%n", record.offset(), record.key(), record.value());
             }
 
             // end timer
@@ -101,7 +86,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
      * @return recordDetails: HashMap containing the keys: payorId, payeeId, amount, transactionId. All values are
      * int apart from the value for transactionId which is a String.
      */
-    private HashMap<String, Object> parseConsumerRecord(ConsumerRecord<String, String> record) {
+    private RecordDetails parseConsumerRecord(ConsumerRecord<String, String> record) {
         String transactionId = record.key();
         String payloadJson = record.value();
         PaymentEvent payloadAsPaymentEvent;
@@ -113,13 +98,12 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
             throw new RuntimeException(e);
         }
 
-        HashMap<String, Object> recordDetails = new HashMap<>();
-        recordDetails.put("payorId", payloadAsPaymentEvent.payor);
-        recordDetails.put("payeeId", payloadAsPaymentEvent.payee);
-        recordDetails.put("amount", payloadAsPaymentEvent.amount);
-        recordDetails.put("transactionId", transactionId);
-
-        return recordDetails;
+        return new RecordDetails(
+                Integer.parseInt(payloadAsPaymentEvent.payor),
+                Integer.parseInt(payloadAsPaymentEvent.payee),
+                Integer.parseInt(payloadAsPaymentEvent.amount),
+                transactionId
+        );
     }
 
     // Eventually this class will receive the entire payload of the event
