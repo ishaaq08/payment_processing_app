@@ -24,6 +24,7 @@ public class App {
         consumerConfigs.put("auto.offset.reset", "earliest"); // What to do when there is initial offset in Kafka e.g. when a consumer first subscribes
         consumerConfigs.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         consumerConfigs.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+        consumerConfigs.put("max.poll.records", "50");
 
         // Database configs
         String databaseUrl = "jdbc:postgresql://localhost/payment_processing_db";

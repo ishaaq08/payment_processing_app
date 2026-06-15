@@ -1,6 +1,7 @@
 package com.ishaaq.consumer;
 
 import com.ishaaq.app.Builder;
+import com.ishaaq.app.PaymentEvent;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -13,10 +14,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
     // Required to pass into process().
     // A single connection for a consumer, to re-use the same connections when processing records.
     private DatabaseOps dbConn;
+    private ObjectMapper objectMapper;
 
     // Constructor
     public AppConsumer(Map<String, Object> consumerConfigs, Properties databaseConfigs, String databaseUrl) {
@@ -41,14 +46,80 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
         allPartitions.add(partition0);
         super.client.assign(allPartitions);
 
+
         while (true) {
             ConsumerRecords<String, String> records = super.client.poll(Duration.ofMillis(100));
+            // Store and output the number of records returned - should be 50 - assert?
+
+            // start timer
             for (ConsumerRecord<String, String> record : records) {
+                /*
+                Poll returns a batch of records - update to 50
+
+                For loop: Iterate through each record
+
+                    1) Extract message details
+                        Convert record.value which will be in JSON to a PaymentEvent object
+
+                    2) Type cast payorId, payeeId, amount to integer
+                        PaymentEvent requires strings for the args. But process requires int for payorId, payeeId, amount
+
+                    2) Process each message
+                        Call process(object.payor, object.payee, object.amount, record.key)
+
+                Exit for loop: end timer --> returns processing time for a batch of 200
+
+                Testing conditions:
+                    - Start Broker in container
+                    - Start producer locally
+                    - Wait for it to finish - this means 200 records have been uploaded
+                    - Start Consumer locally
+
+                 */
+
+
+                processMessage(payloadAsPaymentEvent.payor, payloadAsPaymentEvent.payee, payloadAsPaymentEvent.amount, transactionId);
+
+
                 // process() will be called here --> on each record in the batch
                 System.out.printf("%noffset = %d, key = %s, value = %s%n", record.offset(), record.key(), record.value());
             }
+
+            // end timer
+            // print runtime
         }
 
+    }
+
+    /**
+     * Parse a ConsumerRecord and return the key and payload. jackson is used convert the JSON string from the payload
+     * into a PaymentEvent object. The fields from PaymentEvent, now storing the payload details, are then passed in
+     * as values to the returned HashMap.
+
+     * @param record: The ConsumerRecord to be parsed
+     *
+     * @return recordDetails: HashMap containing the keys: payorId, payeeId, amount, transactionId. All values are
+     * int apart from the value for transactionId which is a String.
+     */
+    private HashMap<String, Object> parseConsumerRecord(ConsumerRecord<String, String> record) {
+        String transactionId = record.key();
+        String payloadJson = record.value();
+        PaymentEvent payloadAsPaymentEvent;
+
+        try{
+            payloadAsPaymentEvent = objectMapper.readValue(payloadJson, PaymentEvent.class);
+        } catch (JsonProcessingException e) {
+            System.out.println("--> failure converting object into a JSON string via the Jackson package!");
+            throw new RuntimeException(e);
+        }
+
+        HashMap<String, Object> recordDetails = new HashMap<>();
+        recordDetails.put("payorId", payloadAsPaymentEvent.payor);
+        recordDetails.put("payeeId", payloadAsPaymentEvent.payee);
+        recordDetails.put("amount", payloadAsPaymentEvent.amount);
+        recordDetails.put("transactionId", transactionId);
+
+        return recordDetails;
     }
 
     // Eventually this class will receive the entire payload of the event
@@ -61,7 +132,6 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
         if (doesTransactionExist) {
             System.out.println("ℹ️ Transaction exists. Committing partition offset.");
         } else{
-            // FALSE --> Transaction doesn't exist
             HashMap<Integer, Integer> balances = dbConn.getPayorAndPayeeBalance(payorId, payeeId);
             int payorCurrentBalance = balances.get(payorId);
             int payeeCurrentBalance = balances.get(payeeId);
@@ -95,7 +165,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
                 dbConn.commitTransaction();
                 // to-add: commit partition offset
 
-                System.out.println("✅ Successfully processed messaged: db transaction and partition offset comnitted.");
+                System.out.println("✅ Successfully processed messaged: db transaction and partition offset committed.");
 
             } catch (Exception e) {
                 // The method performUpdate() and insertTransaction() will catch a SQLException. They will throw a RuntimeException
@@ -105,7 +175,6 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
                 throw new RuntimeException("Encountered exception when processing message", e);
             }
         }
-        // Later we can close the connection - no need to add right now
 
     }
 }
