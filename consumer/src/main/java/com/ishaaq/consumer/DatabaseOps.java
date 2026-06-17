@@ -66,7 +66,7 @@ public class DatabaseOps {
             e.printStackTrace();
             throw new RuntimeException("Error performing database operation executeUpdate()", e);
         }
-        System.out.println("--> Successfully updated table " + table + " where rowId equals " + rowId);
+//        System.out.println("--> Successfully updated table " + table + " where rowId equals " + rowId);
 
     }
 

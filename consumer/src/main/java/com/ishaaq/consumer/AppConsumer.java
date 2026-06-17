@@ -5,6 +5,7 @@ import com.ishaaq.app.PaymentEvent;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 
 import java.sql.SQLException;
@@ -49,7 +50,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
 
             // For testing ONLY. Message processing time will constrain poll interval.
             System.out.println("========== Processing batch and starting timer ==========");
-            long start = System.nanoTime();
+//            long start = System.nanoTime();
 
             for (ConsumerRecord<String, String> record : records) {
                 System.out.printf("== Processing offset: %s== %n", record.offset());
@@ -65,17 +66,48 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
                         recordDetails.transactionId
                 );
 
+                TopicPartition recordTopicPartition = new TopicPartition (record.topic(), record.partition());
+                OffsetAndMetadata recordOffsetAndMetadata = records.nextOffsets().get(recordTopicPartition);
+                long nextOffsetToBe = recordOffsetAndMetadata.offset();
+                Optional<Integer> leaderEpoch = recordOffsetAndMetadata.leaderEpoch();
+
+                System.out.printf("--> committed offset: %s%n--> leader epoch: %s%n%n", nextOffsetToBe, leaderEpoch);
+
 
             }
+
+            /*
+            The batch has finished processing by this point. Logic after this point will only run if the processing is
+            successful and no errors were thrown. Therefore, it is appropriate to commit the entire batch here
+
+            My only reservation is that if there is a failure between committing the transaction db and partition offset,
+            then once the consumer recovers or there is a rebalancing then the whole batch will be processed again.
+            The 'processing' should only involve checking if the transactionId exists which it should. Then its processing
+            will be skipped.
+
+            If no records are returned by poll, processing will still occur. No errors will be thrown though. So the commit
+            offset logic will be reached. I don't want unnnecessary commit offset requests being made to the broker.
+            --> FIX: check if the records > 0, if so execute commit offset logic
+
+            I might have to manually provide topic and partition. Example code uses record within the for loop. This doesn't
+            make sense to me.
+            --> what offset is returned by nextOffsets().
+                offset()
+                leaderEpoch()
+
+                expecting the offset to be 50 in each iteration
+
+
+             */
 
             // end timer
-            long elapsedMs = (System.nanoTime() - start) / 1_000_000;
-            runTimes.add(elapsedMs);
-
-            if (runTimes.size() == 4) {
-                System.out.printf("Test runs have complete: %s", runTimes);
-                break;
-            }
+//            long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+//            runTimes.add(elapsedMs);
+//
+//            if (runTimes.size() == 4) {
+//                System.out.printf("Test runs have complete: %s", runTimes);
+//                break;
+//            }
 //            }
         }
 
@@ -138,7 +170,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
             // == START TRANSACTION == //
             try {
                 if (sufficient) {
-                    System.out.println("--> performing balance transfers");
+//                    System.out.println("--> performing balance transfers");
                     int payorNewBalance = payorCurrentBalance - amount;
                     int payeeNewBalance = payeeCurrentBalance + amount;
                     dbConn.performUpdate("tbl_balance", payorNewBalance, payorId);
