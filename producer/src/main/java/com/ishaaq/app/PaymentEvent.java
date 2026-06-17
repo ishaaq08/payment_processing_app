@@ -1,5 +1,8 @@
 package com.ishaaq.app;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class PaymentEvent {
     // Instance variables != Class variables
     // Class variables are declared using static
@@ -12,11 +15,12 @@ public class PaymentEvent {
     public String payor; // Unique 4 digit number
 
     // Constructor - must be named the same as the name of the class
+    @JsonCreator
     public PaymentEvent(
 //            String transaction_id,
-            String amount,
-            String payee,
-            String payor
+            @JsonProperty("amount") String amount,
+            @JsonProperty("payee") String payee,
+            @JsonProperty("payor") String payor
     )
     {
         // Use the 'this' keyword to reference the object

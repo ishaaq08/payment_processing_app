@@ -39,7 +39,7 @@ public class App {
         // Create producer object
         AppProducer myProducer = new AppProducer(producerConfigs);
 
-        for (int i=1; i < 100; i++) {
+        for (int i=0; i < 50; i++) {
             System.out.println("=========================================");
 
             // Generate one random transaction
