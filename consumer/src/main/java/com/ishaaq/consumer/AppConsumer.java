@@ -92,7 +92,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
         try{
             payloadAsPaymentEvent = objectMapper.readValue(payloadJson, PaymentEvent.class);
         } catch (JsonProcessingException e) {
-            System.out.println("--> failure converting object into a JSON string via the Jackson package!");
+            System.out.println("--> failure converting JSON string into an object!");
             throw new RuntimeException(e);
         }
 
