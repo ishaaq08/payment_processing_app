@@ -9,10 +9,7 @@ import org.apache.kafka.common.TopicPartition;
 
 import java.sql.SQLException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,11 +45,15 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
 
         while (true) {
             ConsumerRecords<String, String> records = super.client.poll(Duration.ofMillis(100));
-            // Store and output the number of records returned - should be 50 - assert?
+            // Only for testing - ASSERT: number of records returned
+            List<ConsumerRecord<String, String>> paymentPartitionRecords = records.records(new TopicPartition("payments", 0));
+            int paymentPartitionRecordsSize = paymentPartitionRecords.size();
+            assert paymentPartitionRecordsSize == 50;
 
             // start timer
+
             for (ConsumerRecord<String, String> record : records) {
-                System.out.printf("Processing offset: %s%n", record.offset());
+                System.out.printf("======================== Processing offset: %s========================%n", record.offset());
 
                 // Extract message details
                 RecordDetails recordDetails = parseConsumerRecord(record);
@@ -131,20 +132,15 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
             // == START TRANSACTION == //
             try {
                 if (sufficient) {
-                    // User has sufficient funds
-                    // Update balances
                     System.out.println("--> performing balance transfers");
                     int payorNewBalance = payorCurrentBalance - amount;
                     int payeeNewBalance = payeeCurrentBalance + amount;
                     dbConn.performUpdate("tbl_balance", payorNewBalance, payorId);
                     dbConn.performUpdate("tbl_balance", payeeNewBalance, payeeId);
 
-                    // Insert transaction with "ACCEPTED" status
                     dbConn.insertTransaction(payorId, payeeId, amount, transactionId, "ACCEPTED");
 
                 } else {
-                    // User has insufficient funds and no balance updates required
-                    // Insert transaction with "DENIED" status
                     dbConn.insertTransaction(payorId, payeeId, amount, transactionId, "DENIED");
                 }
 
