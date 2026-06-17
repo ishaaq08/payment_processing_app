@@ -109,7 +109,7 @@ public class DatabaseOps {
 
             0 records: a) return False
          */
-        System.out.printf("== checking if transaction exists: %s ==%n", transactionId);
+        System.out.printf("--> checking if transaction exists: %s%n", transactionId);
 
         // Define SQL query
         String sqlQuery = "SELECT * FROM tbl_transactions WHERE transaction_id = ?;";
@@ -181,7 +181,7 @@ public class DatabaseOps {
             }
 
             // debugging
-            System.out.println(pstmtGet);
+//            System.out.println(pstmtGet);
 
 
         } catch (SQLException e) {

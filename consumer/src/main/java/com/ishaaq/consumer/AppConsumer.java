@@ -45,15 +45,23 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
 
         while (true) {
             ConsumerRecords<String, String> records = super.client.poll(Duration.ofMillis(100));
-            // Only for testing - ASSERT: number of records returned
             List<ConsumerRecord<String, String>> paymentPartitionRecords = records.records(new TopicPartition("payments", 0));
             int paymentPartitionRecordsSize = paymentPartitionRecords.size();
+
+//            if (paymentPartitionRecordsSize == 0) {
+//                System.out.println("No records have been fetched");
+//                break;
+//            }
+
+            // Only for testing - ASSERT: number of records returned
+
             assert paymentPartitionRecordsSize == 50;
 
-            // start timer
+            System.out.println("========== Processing batch and starting timer ==========");
+            long start = System.nanoTime();
 
             for (ConsumerRecord<String, String> record : records) {
-                System.out.printf("======================== Processing offset: %s========================%n", record.offset());
+                System.out.printf("== Processing offset: %s== %n", record.offset());
 
                 // Extract message details
                 RecordDetails recordDetails = parseConsumerRecord(record);
@@ -70,7 +78,12 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
             }
 
             // end timer
-            // print runtime
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+            System.out.println("Took " + elapsedMs + " ms%n");
+
+//            if (elapsedMs== 0) {
+//                break;
+//            }
         }
 
     }
@@ -112,22 +125,22 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
 
     // Eventually this class will receive the entire payload of the event
     public void processMessage(int payorId, int payeeId, int amount, String transactionId) {
-        System.out.println("== Processing partition message ==");
+        System.out.println("--> parsing consumer record ==");
 
         // Check if the transaction already exists in the database
         boolean doesTransactionExist = dbConn.transactionExists(transactionId);
 
         if (doesTransactionExist) {
-            System.out.println("ℹ️ Transaction exists. Committing partition offset.");
+            System.out.println("--> transaction exists. Committing partition offset.");
         } else{
             HashMap<Integer, Integer> balances = dbConn.getPayorAndPayeeBalance(payorId, payeeId);
             int payorCurrentBalance = balances.get(payorId);
             int payeeCurrentBalance = balances.get(payeeId);
-            System.out.printf("payor balance: %s, payee balance: %s%n", payorCurrentBalance, payeeCurrentBalance);
+//            System.out.printf("payor balance: %s, payee balance: %s%n", payorCurrentBalance, payeeCurrentBalance);
 
             // Check if the payor has sufficient balance i.e. compare to transaction
             boolean sufficient = payorCurrentBalance > amount;
-            System.out.println("--> does the payor have sufficient funds: " + sufficient);
+//            System.out.println("--> does the payor have sufficient funds: " + sufficient);
 
             // == START TRANSACTION == //
             try {
@@ -148,7 +161,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
                 dbConn.commitTransaction();
                 // to-add: commit partition offset
 
-                System.out.println("✅ Successfully processed messaged: db transaction and partition offset committed.");
+                System.out.println("--> message processed: db transaction and partition offset committed.");
 
             } catch (Exception e) {
                 // The method performUpdate() and insertTransaction() will catch a SQLException. They will throw a RuntimeException
