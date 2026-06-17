@@ -103,7 +103,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
                 transactionId
         );
 
-        System.out.printf("🟢 offset %s: transaction %s : user %s transfers user %s an amount of £%s🟢%n", record.offset(),
+        System.out.printf("--> offset %s: transaction %s : user %s transfers user %s an amount of £%s%n", record.offset(),
                 transactionId, recordDetails.payorId, recordDetails.payeeId, recordDetails.amount);
 
         return recordDetails;

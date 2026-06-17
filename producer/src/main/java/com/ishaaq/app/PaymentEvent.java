@@ -15,7 +15,7 @@ public class PaymentEvent {
     public String payor; // Unique 4 digit number
 
     // Constructor - must be named the same as the name of the class
-    @JsonCreator
+    @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
     public PaymentEvent(
 //            String transaction_id,
             @JsonProperty("amount") String amount,

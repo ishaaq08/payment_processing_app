@@ -126,7 +126,7 @@ public class DatabaseOps {
                 System.out.println("--> ✅ transaction exists.");
                 return true;
             } else {
-                System.out.printf("--> transaction: %s does not exist.%n");
+                System.out.printf("--> transaction: %s does not exist.%n", transactionId);
                 return false;
             }
 
