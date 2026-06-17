@@ -42,21 +42,12 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
         allPartitions.add(partition0);
         super.client.assign(allPartitions);
 
+        ArrayList<Long> runTimes = new ArrayList<>();
 
         while (true) {
             ConsumerRecords<String, String> records = super.client.poll(Duration.ofMillis(100));
-            List<ConsumerRecord<String, String>> paymentPartitionRecords = records.records(new TopicPartition("payments", 0));
-            int paymentPartitionRecordsSize = paymentPartitionRecords.size();
 
-//            if (paymentPartitionRecordsSize == 0) {
-//                System.out.println("No records have been fetched");
-//                break;
-//            }
-
-            // Only for testing - ASSERT: number of records returned
-
-            assert paymentPartitionRecordsSize == 50;
-
+            // For testing ONLY. Message processing time will constrain poll interval.
             System.out.println("========== Processing batch and starting timer ==========");
             long start = System.nanoTime();
 
@@ -79,10 +70,12 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
 
             // end timer
             long elapsedMs = (System.nanoTime() - start) / 1_000_000;
-            System.out.println("Took " + elapsedMs + " ms%n");
+            runTimes.add(elapsedMs);
 
-//            if (elapsedMs== 0) {
-//                break;
+            if (runTimes.size() == 4) {
+                System.out.printf("Test runs have complete: %s", runTimes);
+                break;
+            }
 //            }
         }
 
