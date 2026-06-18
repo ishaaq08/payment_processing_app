@@ -11,7 +11,7 @@ import java.sql.*;
  * Hello world!
  */
 public class App {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         BrokerConfig myBrokerConfig = new BrokerConfig();
         String brokerAddress = myBrokerConfig.getBrokerAddress();
 

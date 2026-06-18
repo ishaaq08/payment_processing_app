@@ -2,6 +2,7 @@ package com.ishaaq.consumer;
 
 import com.ishaaq.app.Builder;
 import com.ishaaq.app.PaymentEvent;
+import com.ishaaq.app.Topic;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -33,9 +34,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
         super.client = new KafkaConsumer<>(super.configs);
     }
 
-    public void consumeMessages() {
-        // How are partitions assigned in production?
-        // For testing, we will just do manual assignment of partitions
+    public void consumeMessages() throws InterruptedException {
         System.out.println("== Consuming message from partition ==");
         System.out.println("--> consuming message from payments-0");
         TopicPartition partition0 = new TopicPartition("payments", 0);
@@ -43,12 +42,16 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
         allPartitions.add(partition0);
         super.client.assign(allPartitions);
 
-        ArrayList<Long> runTimes = new ArrayList<>();
+        TopicPartition paymentsPartition = new TopicPartition("payments", 0);
 
         while (true) {
             ConsumerRecords<String, String> records = super.client.poll(Duration.ofMillis(100));
 
-            // For testing ONLY. Message processing time will constrain poll interval.
+            // Check how many records have been returned
+            List<ConsumerRecord<String, String>> paymentsRecords = records.records(paymentsPartition);
+            int paymentRecordsSize = paymentsRecords.size();
+            System.out.printf("--> batch size: %s%n", paymentRecordsSize);
+
             System.out.println("========== Processing batch and starting timer ==========");
 //            long start = System.nanoTime();
 
@@ -66,39 +69,19 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
                         recordDetails.transactionId
                 );
 
-                TopicPartition recordTopicPartition = new TopicPartition (record.topic(), record.partition());
-                OffsetAndMetadata recordOffsetAndMetadata = records.nextOffsets().get(recordTopicPartition);
-                long nextOffsetToBe = recordOffsetAndMetadata.offset();
-                Optional<Integer> leaderEpoch = recordOffsetAndMetadata.leaderEpoch();
+            /*
+            Commit partition offset for batch of records returned by poll (max batch size is arbitrarily set to 50)
+                If processMessage does not yield an error then the message processing was successful. Message will be
+                written to db. Transactions will be committed. Now the offset can be committed for the partition.
 
-                System.out.printf("--> committed offset: %s%n--> leader epoch: %s%n%n", nextOffsetToBe, leaderEpoch);
-
+                commitSync(Map<TopicPartition, OffsetAndMetadata>) --> nextOffsets() returns this!
+                But, if I did a for loop per partition or topic then I would need to access the specific key from the
+                map returned by nextOffsets and pass that to commitSync. This way I will only commit the offsets for
+                the partition that has been processed.
+             */
+//            super.client.commitSync(records.nextOffsets());
 
             }
-
-            /*
-            The batch has finished processing by this point. Logic after this point will only run if the processing is
-            successful and no errors were thrown. Therefore, it is appropriate to commit the entire batch here
-
-            My only reservation is that if there is a failure between committing the transaction db and partition offset,
-            then once the consumer recovers or there is a rebalancing then the whole batch will be processed again.
-            The 'processing' should only involve checking if the transactionId exists which it should. Then its processing
-            will be skipped.
-
-            If no records are returned by poll, processing will still occur. No errors will be thrown though. So the commit
-            offset logic will be reached. I don't want unnnecessary commit offset requests being made to the broker.
-            --> FIX: check if the records > 0, if so execute commit offset logic
-
-            I might have to manually provide topic and partition. Example code uses record within the for loop. This doesn't
-            make sense to me.
-            --> what offset is returned by nextOffsets().
-                offset()
-                leaderEpoch()
-
-                expecting the offset to be 50 in each iteration
-
-
-             */
 
             // end timer
 //            long elapsedMs = (System.nanoTime() - start) / 1_000_000;
@@ -109,6 +92,8 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
 //                break;
 //            }
 //            }
+
+            Thread.sleep(2000);
         }
 
     }
@@ -152,7 +137,6 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
     public void processMessage(int payorId, int payeeId, int amount, String transactionId) {
         System.out.println("--> parsing consumer record ==");
 
-        // Check if the transaction already exists in the database
         boolean doesTransactionExist = dbConn.transactionExists(transactionId);
 
         if (doesTransactionExist) {
@@ -163,11 +147,9 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
             int payeeCurrentBalance = balances.get(payeeId);
 //            System.out.printf("payor balance: %s, payee balance: %s%n", payorCurrentBalance, payeeCurrentBalance);
 
-            // Check if the payor has sufficient balance i.e. compare to transaction
             boolean sufficient = payorCurrentBalance > amount;
 //            System.out.println("--> does the payor have sufficient funds: " + sufficient);
 
-            // == START TRANSACTION == //
             try {
                 if (sufficient) {
 //                    System.out.println("--> performing balance transfers");
@@ -182,11 +164,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
                     dbConn.insertTransaction(payorId, payeeId, amount, transactionId, "DENIED");
                 }
 
-                // == END TRANSACTION == //
                 dbConn.commitTransaction();
-                // to-add: commit partition offset
-
-                System.out.println("--> message processed: db transaction and partition offset committed.");
 
             } catch (Exception e) {
                 // The method performUpdate() and insertTransaction() will catch a SQLException. They will throw a RuntimeException

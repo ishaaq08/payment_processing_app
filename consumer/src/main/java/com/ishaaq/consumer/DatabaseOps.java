@@ -109,7 +109,6 @@ public class DatabaseOps {
 
             0 records: a) return False
          */
-        System.out.printf("--> checking if transaction exists: %s%n", transactionId);
 
         // Define SQL query
         String sqlQuery = "SELECT * FROM tbl_transactions WHERE transaction_id = ?;";
@@ -123,7 +122,7 @@ public class DatabaseOps {
         ) {
 
             if (rs.next()) {
-                System.out.println("--> ✅ transaction exists.");
+                System.out.printf("--> transaction %s exists.%n", transactionId);
                 return true;
             } else {
                 System.out.printf("--> transaction: %s does not exist.%n", transactionId);
@@ -143,10 +142,10 @@ public class DatabaseOps {
     // == TRANSACTION MANAGEMENT ==
 
     public void commitTransaction() {
-        System.out.println("--> ℹ️ committing transaction");
 
         try {
             conn.commit();
+            System.out.println("--> transaction committed");
         } catch (SQLException e) {
             throw new RuntimeException("Error when committing transaction. This can occur due to a variety of reasons", e);
         }
