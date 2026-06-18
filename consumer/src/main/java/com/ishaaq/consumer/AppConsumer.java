@@ -47,39 +47,49 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
         while (true) {
             ConsumerRecords<String, String> records = super.client.poll(Duration.ofMillis(100));
 
-            // Check how many records have been returned
+            /*
+            Specified a specific partition only for the scope of this project. In reality this would be different.
+             */
             List<ConsumerRecord<String, String>> paymentsRecords = records.records(paymentsPartition);
-            int paymentRecordsSize = paymentsRecords.size();
-            System.out.printf("--> batch size: %s%n", paymentRecordsSize);
 
-            System.out.println("========== Processing batch and starting timer ==========");
+            if (paymentsRecords.isEmpty()) {
+                // No records have been returned for whatever reason > skip to the next iteration of the while loop
+                System.out.println("--> no records returned from poll(). Skipping to next iteration.");
+                continue;
+            } else {
+                System.out.println("========== Processing batch and starting timer ==========");
 //            long start = System.nanoTime();
 
-            for (ConsumerRecord<String, String> record : records) {
-                System.out.printf("== Processing offset: %s== %n", record.offset());
+                for (ConsumerRecord<String, String> record : records) {
+                    System.out.printf("== Processing offset: %s== %n", record.offset());
 
-                // Extract message details
-                RecordDetails recordDetails = parseConsumerRecord(record);
+                    // Extract message details
+                    RecordDetails recordDetails = parseConsumerRecord(record);
 
-                // Process message
-                processMessage(
-                        recordDetails.payorId,
-                        recordDetails.payeeId,
-                        recordDetails.amount,
-                        recordDetails.transactionId
-                );
+                    // Process message
+                    processMessage(
+                            recordDetails.payorId,
+                            recordDetails.payeeId,
+                            recordDetails.amount,
+                            recordDetails.transactionId
+                    );
 
-            /*
-            Commit partition offset for batch of records returned by poll (max batch size is arbitrarily set to 50)
+
+                /*
+                Commit partition offset for batch of records returned by poll (max batch size is arbitrarily set to 50)
                 If processMessage does not yield an error then the message processing was successful. Message will be
-                written to db. Transactions will be committed. Now the offset can be committed for the partition.
+                written to db. Transactions will be committed. Now the partition offsets can be committed.
 
                 commitSync(Map<TopicPartition, OffsetAndMetadata>) --> nextOffsets() returns this!
                 But, if I did a for loop per partition or topic then I would need to access the specific key from the
                 map returned by nextOffsets and pass that to commitSync. This way I will only commit the offsets for
                 the partition that has been processed.
-             */
-//            super.client.commitSync(records.nextOffsets());
+                */
+                long newCommittedOffset = records.nextOffsets().get(paymentsPartition).offset();
+                super.client.commitSync(records.nextOffsets());
+                System.out.printf("--> successfully processed a batch of %s records, updated committed offset to %s%n",
+                        paymentsRecords.size(), newCommittedOffset);
+            }
 
             }
 
