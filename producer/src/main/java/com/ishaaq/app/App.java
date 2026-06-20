@@ -39,7 +39,7 @@ public class App {
         // Create producer object
         AppProducer myProducer = new AppProducer(producerConfigs);
 
-        for (int i=0; i < 50; i++) {
+        for (int i=0; i < 1000; i++) {
             System.out.println("=========================================");
 
             // Generate one random transaction
@@ -60,8 +60,6 @@ public class App {
 
             // Upload transaction to partition
             myProducer.sendMessage(key, payload, topicName);
-
-            Thread.sleep(1000);
         }
 
     }

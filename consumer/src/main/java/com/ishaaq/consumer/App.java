@@ -25,12 +25,16 @@ public class App {
         consumerConfigs.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         consumerConfigs.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         consumerConfigs.put("max.poll.records", "50");
+        consumerConfigs.put("max.poll.interval.ms", "300");
 
         // Database configs
         String databaseUrl = "jdbc:postgresql://localhost/payment_processing_db";
         Properties databaseConfigs = new Properties();
         databaseConfigs.setProperty("user", "postgres");
         databaseConfigs.setProperty("password", "superuser");
+
+        // Partitions
+
 
         // Create consumer class and pass in configs
         AppConsumer myConsumer = new AppConsumer(consumerConfigs, databaseConfigs, databaseUrl);

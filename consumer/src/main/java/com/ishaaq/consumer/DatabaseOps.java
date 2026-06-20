@@ -97,19 +97,6 @@ public class DatabaseOps {
     }
 
     public boolean transactionExists(String transactionId) {
-        /*
-        Query tbl_transactions using transactionId
-
-        check if the amount of records returned is equal to 1
-            --> rs.next should be true
-
-            NOTE:Impossible for more than 1 record to be returned as this field is the PK
-            1 record: Transaction has been committed. But system must have failed before committing partition offset.
-            a) Commit partition offset b) return True
-
-            0 records: a) return False
-         */
-
         // Define SQL query
         String sqlQuery = "SELECT * FROM tbl_transactions WHERE transaction_id = ?;";
 
@@ -139,6 +126,31 @@ public class DatabaseOps {
 
     }
 
+    // TABLE: batch_metrics
+
+    public void insertBatchMetrics(int batchSize, long elapsedTimeMs) {
+        String sqlQuery = "INSERT INTO batch_metrics (batch_size, elapsed_time) VALUES (?, ?)";
+
+        // SQL query arguments
+        ArrayList<Object> arguments = new ArrayList<>(Arrays.asList(batchSize, elapsedTimeMs));
+
+        // try-with-resources
+        try (PreparedStatement pstmt = getPreparedStatement(sqlQuery, arguments);) {
+            int updateResult = pstmt.executeUpdate();
+
+            // Validate the update
+            if (updateResult ==1) {
+                System.out.println("--> successfully inserted batch metric %s%n");
+            } else {
+                throw new RuntimeException("Encountered issue during executeUpdate(). Expected 1 to be returned.");
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error performing database operation executeUpdate()", e);
+        }
+    }
+
     // == TRANSACTION MANAGEMENT ==
 
     public void commitTransaction() {
@@ -152,7 +164,7 @@ public class DatabaseOps {
     }
 
     public void rollbackTransaction() {
-        System.out.println("--> ℹ️ rolling back transaction");
+        System.out.println("--> rolling back transaction");
 
         try {
             conn.rollback();
@@ -176,6 +188,8 @@ public class DatabaseOps {
                 // Exclusively for the update transaction method
                 } else if (sqlArgs.get(index) instanceof String) {
                     pstmtGet.setString(index+1, (String) sqlArgs.get(index));
+                } else if (sqlArgs.get(index) instanceof Long) {
+                    pstmtGet.setLong(index+1, (Long) sqlArgs.get(index));
                 }
             }
 

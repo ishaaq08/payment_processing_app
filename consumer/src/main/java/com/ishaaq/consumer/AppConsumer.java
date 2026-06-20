@@ -17,7 +17,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
-    // A single connection for a consumer, to re-use the same connections when processing records.
     private DatabaseOps dbConn;
     private ObjectMapper objectMapper = new ObjectMapper();;
     private record RecordDetails(int payorId, int payeeId, int amount, String transactionId) {};
@@ -32,16 +31,23 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
     public void createClient () {
         System.out.println("--> setting consumer client to super.configs ");
         super.client = new KafkaConsumer<>(super.configs);
-    }
 
-    public void consumeMessages() throws InterruptedException {
-        System.out.println("== Consuming message from partition ==");
-        System.out.println("--> consuming message from payments-0");
+        /*
+        Assign consumer to the partition payments-0
+            This project only uses the partition payments-0. Hence, I believe this is appropriate to be defined in the
+             constructor. This is also why assign() is used over subscribe(). It will be interesting to learn about the latter.
+             Therefore, given the use of assign(), no logic needs to be implemented that allows multiple partitions to
+              be assigned to this consumer.
+
+         */
         TopicPartition partition0 = new TopicPartition("payments", 0);
         ArrayList<TopicPartition> allPartitions = new ArrayList<>();
         allPartitions.add(partition0);
         super.client.assign(allPartitions);
+    }
 
+    public void consumeMessages() throws InterruptedException {
+        System.out.println("--> consuming message from payments-0");
         TopicPartition paymentsPartition = new TopicPartition("payments", 0);
 
         while (true) {
@@ -51,6 +57,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
             Specified a specific partition only for the scope of this project. In reality this would be different.
              */
             List<ConsumerRecord<String, String>> paymentsRecords = records.records(paymentsPartition);
+            int batchSize = paymentsRecords.size();
 
             if (paymentsRecords.isEmpty()) {
                 // No records have been returned for whatever reason > skip to the next iteration of the while loop
@@ -58,8 +65,8 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
                 continue;
             } else {
                 System.out.println("========== Processing batch and starting timer ==========");
-//            long start = System.nanoTime();
 
+                long start = System.nanoTime();
                 for (ConsumerRecord<String, String> record : records) {
                     System.out.printf("== Processing offset: %s== %n", record.offset());
 
@@ -73,7 +80,9 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
                             recordDetails.amount,
                             recordDetails.transactionId
                     );
-
+                }
+                long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+                dbConn.insertBatchMetrics(batchSize, elapsedMs);
 
                 /*
                 Commit partition offset for batch of records returned by poll (max batch size is arbitrarily set to 50)
@@ -88,20 +97,9 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
                 long newCommittedOffset = records.nextOffsets().get(paymentsPartition).offset();
                 super.client.commitSync(records.nextOffsets());
                 System.out.printf("--> successfully processed a batch of %s records, updated committed offset to %s%n",
-                        paymentsRecords.size(), newCommittedOffset);
-            }
+                        batchSize, newCommittedOffset);
 
-            }
-
-            // end timer
-//            long elapsedMs = (System.nanoTime() - start) / 1_000_000;
-//            runTimes.add(elapsedMs);
-//
-//            if (runTimes.size() == 4) {
-//                System.out.printf("Test runs have complete: %s", runTimes);
-//                break;
-//            }
-//            }
+                }
 
             Thread.sleep(2000);
         }
