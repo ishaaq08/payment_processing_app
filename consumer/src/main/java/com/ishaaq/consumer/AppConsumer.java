@@ -32,7 +32,6 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
  */
     private TopicPartition paymentsPartition = new TopicPartition("payments", 0);
 
-    // Constrcutor
     public AppConsumer(Map<String, Object> consumerConfigs, Properties databaseConfigs, String databaseUrl) {
         super(consumerConfigs);
         dbConn = new DatabaseOps(databaseConfigs, databaseUrl);
@@ -43,8 +42,6 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
     public void createClient () {
         System.out.println("--> setting consumer client to super.configs ");
         super.client = new KafkaConsumer<>(super.configs);
-
-
         super.client.assign(new ArrayList<>(Collections.singletonList(paymentsPartition)));
     }
 
@@ -145,8 +142,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
         return recordDetails;
     }
 
-    // Eventually this class will receive the entire payload of the event
-    public void processMessage(int payorId, int payeeId, int amount, String transactionId) {
+    private void processMessage(int payorId, int payeeId, int amount, String transactionId) {
         System.out.println("--> parsing consumer record ==");
 
         boolean doesTransactionExist = dbConn.transactionExists(transactionId);
@@ -157,25 +153,15 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
             HashMap<Integer, Integer> balances = dbConn.getPayorAndPayeeBalance(payorId, payeeId);
             int payorCurrentBalance = balances.get(payorId);
             int payeeCurrentBalance = balances.get(payeeId);
-//            System.out.printf("payor balance: %s, payee balance: %s%n", payorCurrentBalance, payeeCurrentBalance);
 
-            boolean sufficient = payorCurrentBalance > amount;
-//            System.out.println("--> does the payor have sufficient funds: " + sufficient);
+            boolean sufficient = payorCurrentBalance >= amount;
 
             try {
                 if (sufficient) {
-//                    System.out.println("--> performing balance transfers");
-                    int payorNewBalance = payorCurrentBalance - amount;
-                    int payeeNewBalance = payeeCurrentBalance + amount;
-                    dbConn.performUpdate("tbl_balance", payorNewBalance, payorId);
-                    dbConn.performUpdate("tbl_balance", payeeNewBalance, payeeId);
-
-                    dbConn.insertTransaction(payorId, payeeId, amount, transactionId, "ACCEPTED");
-
+                    transferFunds(payorId, payorCurrentBalance, payeeId, payeeCurrentBalance, amount, transactionId);
                 } else {
                     dbConn.insertTransaction(payorId, payeeId, amount, transactionId, "DENIED");
                 }
-
                 dbConn.commitTransaction();
 
             } catch (Exception e) {
@@ -188,4 +174,15 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
         }
 
     }
+
+    private void transferFunds(int payorId, int payorCurrentBalance, int payeeId, int payeeCurrentBalance, int amount,
+                               String transactionId) {
+            System.out.println("--> performing balance transfers");
+            int payorNewBalance = payorCurrentBalance - amount;
+            int payeeNewBalance = payeeCurrentBalance + amount;
+            dbConn.performUpdate("tbl_balance", payorNewBalance, payorId);
+            dbConn.performUpdate("tbl_balance", payeeNewBalance, payeeId);
+            dbConn.insertTransaction(payorId, payeeId, amount, transactionId, "ACCEPTED");
+        }
+
 }
