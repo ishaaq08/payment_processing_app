@@ -20,6 +20,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
     private DatabaseOps dbConn;
     private ObjectMapper objectMapper = new ObjectMapper();;
     private record RecordDetails(int payorId, int payeeId, int amount, String transactionId) {};
+    private TopicPartition paymentsPartition = new TopicPartition("payments", 0);
 
     public AppConsumer(Map<String, Object> consumerConfigs, Properties databaseConfigs, String databaseUrl) {
         super(consumerConfigs);
@@ -40,22 +41,15 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
               be assigned to this consumer.
 
          */
-        TopicPartition partition0 = new TopicPartition("payments", 0);
-        ArrayList<TopicPartition> allPartitions = new ArrayList<>();
-        allPartitions.add(partition0);
-        super.client.assign(allPartitions);
+        super.client.assign(new ArrayList<>(Collections.singletonList(paymentsPartition)));
     }
 
     public void consumeMessages() throws InterruptedException {
         System.out.println("--> consuming message from payments-0");
-        TopicPartition paymentsPartition = new TopicPartition("payments", 0);
 
         while (true) {
             ConsumerRecords<String, String> records = super.client.poll(Duration.ofMillis(100));
 
-            /*
-            Specified a specific partition only for the scope of this project. In reality this would be different.
-             */
             List<ConsumerRecord<String, String>> paymentsRecords = records.records(paymentsPartition);
             int batchSize = paymentsRecords.size();
 
@@ -94,10 +88,10 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
                 map returned by nextOffsets and pass that to commitSync. This way I will only commit the offsets for
                 the partition that has been processed.
                 */
-                long newCommittedOffset = records.nextOffsets().get(paymentsPartition).offset();
                 super.client.commitSync(records.nextOffsets());
                 System.out.printf("--> successfully processed a batch of %s records, updated committed offset to %s%n",
-                        batchSize, newCommittedOffset);
+                        batchSize,
+                        records.nextOffsets().get(paymentsPartition).offset());
 
                 }
 
