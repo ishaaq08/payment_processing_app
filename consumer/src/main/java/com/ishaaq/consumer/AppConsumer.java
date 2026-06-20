@@ -20,8 +20,19 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
     private DatabaseOps dbConn;
     private ObjectMapper objectMapper = new ObjectMapper();;
     private record RecordDetails(int payorId, int payeeId, int amount, String transactionId) {};
+
+    /*
+        Assign consumer to the partition payments-0
+
+        This project only uses the partition payments-0. Hence, I believe this is appropriate to be defined in the
+        constructor. This is also why assign() is used over subscribe(). It will be interesting to learn about the latter.
+        Therefore, given the use of assign(), no logic needs to be implemented that allows multiple partitions to
+        be assigned to this consumer.
+
+ */
     private TopicPartition paymentsPartition = new TopicPartition("payments", 0);
 
+    // Constrcutor
     public AppConsumer(Map<String, Object> consumerConfigs, Properties databaseConfigs, String databaseUrl) {
         super(consumerConfigs);
         dbConn = new DatabaseOps(databaseConfigs, databaseUrl);
@@ -33,34 +44,32 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
         System.out.println("--> setting consumer client to super.configs ");
         super.client = new KafkaConsumer<>(super.configs);
 
-        /*
-        Assign consumer to the partition payments-0
-            This project only uses the partition payments-0. Hence, I believe this is appropriate to be defined in the
-             constructor. This is also why assign() is used over subscribe(). It will be interesting to learn about the latter.
-             Therefore, given the use of assign(), no logic needs to be implemented that allows multiple partitions to
-              be assigned to this consumer.
 
-         */
         super.client.assign(new ArrayList<>(Collections.singletonList(paymentsPartition)));
     }
 
+    /**
+     * The main method responsible for consuming messages. Executes a while true loop. Within each iteration payments-0
+     * is polled (max batch size is 50 - arbitrary). If records have been returned, the batch will be iterated through
+     * via a for each loop. parseConsumerRecord and processMessage is called on each ConsumerRecord. The processing time
+     * for a batch is also recorded in the table batch_metrics. This is used to determine worst case processing time
+     * which is used to adjust max.poll.interval.ms If no records are returned by poll we proceed to the next iteration
+     * of the while loop.
+     */
     public void consumeMessages() throws InterruptedException {
         System.out.println("--> consuming message from payments-0");
 
         while (true) {
             ConsumerRecords<String, String> records = super.client.poll(Duration.ofMillis(100));
-
             List<ConsumerRecord<String, String>> paymentsRecords = records.records(paymentsPartition);
-            int batchSize = paymentsRecords.size();
 
             if (paymentsRecords.isEmpty()) {
-                // No records have been returned for whatever reason > skip to the next iteration of the while loop
                 System.out.println("--> no records returned from poll(). Skipping to next iteration.");
                 continue;
             } else {
                 System.out.println("========== Processing batch and starting timer ==========");
-
                 long start = System.nanoTime();
+
                 for (ConsumerRecord<String, String> record : records) {
                     System.out.printf("== Processing offset: %s== %n", record.offset());
 
@@ -76,6 +85,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
                     );
                 }
                 long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+                int batchSize = paymentsRecords.size();
                 dbConn.insertBatchMetrics(batchSize, elapsedMs);
 
                 /*
