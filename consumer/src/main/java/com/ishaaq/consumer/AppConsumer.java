@@ -157,11 +157,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
             boolean sufficient = payorCurrentBalance >= amount;
 
             try {
-                if (sufficient) {
-                    transferFunds(payorId, payorCurrentBalance, payeeId, payeeCurrentBalance, amount, transactionId);
-                } else {
-                    dbConn.insertTransaction(payorId, payeeId, amount, transactionId, "DENIED");
-                }
+                transferFunds(sufficient, payorId, payorCurrentBalance, payeeId, payeeCurrentBalance, amount, transactionId);
                 dbConn.commitTransaction();
 
             } catch (Exception e) {
@@ -175,14 +171,38 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
 
     }
 
-    private void transferFunds(int payorId, int payorCurrentBalance, int payeeId, int payeeCurrentBalance, int amount,
-                               String transactionId) {
-            System.out.println("--> performing balance transfers");
+
+    /**
+     * Method takes 1 of 2 flows depending on the argument passed to the 'sufficient' parameter
+     *<p><ol>
+     *     <li>'sufficient' = true: Payor has sufficient funds. Update balances of payor and payee in tbl_balance. Insert
+     *      transaction into tbl_transactions with an "ACCEPTED" status.</li>
+     *      <li> 'sufficient' = false: Payee has insufficient funds. Insert transaction into tbl_transactions with a "DENIED"
+     *      * status. No update of balances.</li>
+     *</ol></p>
+
+     * @param sufficient: Whether the payor has sufficient funds to complete the transaction
+     * @param payorId: The ID of the payor
+     * @param payorCurrentBalance: The current balance of the payor
+     * @param payeeId: The ID of the payee
+     * @param payeeCurrentBalance: The current balance of the payee
+     * @param amount: The potential amount to be transferred from the payor to the payee
+     * @param transactionId: The unique ID of the transaction
+     */
+    private void transferFunds(boolean sufficient, int payorId, int payorCurrentBalance, int payeeId,
+                               int payeeCurrentBalance, int amount, String transactionId) {
+        if (sufficient) {
+            System.out.printf("--> payor %s has sufficient funds, updating balances and inserting transaction%n", payorId);
             int payorNewBalance = payorCurrentBalance - amount;
             int payeeNewBalance = payeeCurrentBalance + amount;
             dbConn.performUpdate("tbl_balance", payorNewBalance, payorId);
             dbConn.performUpdate("tbl_balance", payeeNewBalance, payeeId);
             dbConn.insertTransaction(payorId, payeeId, amount, transactionId, "ACCEPTED");
+        } else {
+            System.out.printf("--> payor %s has insufficient funds, no balance update needed and inserting transaction%n", payorId);
+            dbConn.insertTransaction(payorId, payeeId, amount, transactionId, "DENIED");
+        }
+
         }
 
 }
