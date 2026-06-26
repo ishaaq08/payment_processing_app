@@ -142,18 +142,30 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
         return recordDetails;
     }
 
+    /**
+     * The method responsible for processing a single ConsumerRecord. It is called within the for each loop in
+     * consumeMessages to process a single record.
+
+     * @param payorId: The ID of the payor
+     * @param payeeId: The ID of the payee
+     * @param amount: The potential amount to be transferred from the payor to the payee
+     * @param transactionId: The unique ID of the transaction
+     *
+     * @throws RuntimeException if there is an error when processing the message. The error likely comes from any of the
+     * methods invoked by dbConn. These methods throw a SQLException which are propagated up the stack as a RuntimeException.
+     * Those RuntimeExceptions are caught here.
+     */
     private void processMessage(int payorId, int payeeId, int amount, String transactionId) {
         System.out.println("--> parsing consumer record ==");
 
         boolean doesTransactionExist = dbConn.transactionExists(transactionId);
 
         if (doesTransactionExist) {
-            System.out.println("--> transaction exists. Committing partition offset.");
+            System.out.println("--> transaction exists");
         } else{
             HashMap<Integer, Integer> balances = dbConn.getPayorAndPayeeBalance(payorId, payeeId);
             int payorCurrentBalance = balances.get(payorId);
             int payeeCurrentBalance = balances.get(payeeId);
-
             boolean sufficient = payorCurrentBalance >= amount;
 
             try {
@@ -161,9 +173,6 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
                 dbConn.commitTransaction();
 
             } catch (Exception e) {
-                // The method performUpdate() and insertTransaction() will catch a SQLException. They will throw a RuntimeException
-                // ... which will be caught here. We can't explicitly specify a SQLException in this catch block because none of
-                // ... the above logic throws it
                 dbConn.rollbackTransaction();
                 throw new RuntimeException("Encountered exception when processing message", e);
             }
