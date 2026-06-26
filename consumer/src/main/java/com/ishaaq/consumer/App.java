@@ -42,15 +42,5 @@ public class App {
         // Call the consumeMessage method
         myConsumer.consumeMessages();
 
-        // These will be accessed from the consumer record as we iterate through ConsumerRecords
-//        int payor_id = 8;
-//        int payee_id = 2;
-//        int amount = 50;
-//        String transactionId = "transaction-2";
-//
-//        myConsumer.processMessage(payor_id, payee_id, amount, transactionId);
-
-
-
     }
 }
