@@ -20,6 +20,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
     private DatabaseOps dbConn;
     private ObjectMapper objectMapper = new ObjectMapper();;
     private record RecordDetails(int payorId, int payeeId, int amount, String transactionId) {};
+    private Thread workerThread;
 
     /*
         Assign consumer to the partition payments-0
@@ -64,6 +65,9 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
                 System.out.println("--> no records returned from poll(). Skipping to next iteration.");
                 continue;
             } else {
+                // pause the partition from the main thread
+
+                // ======== MESSAGE PROCESSING
                 System.out.println("========== Processing batch and starting timer ==========");
                 long start = System.nanoTime();
 
@@ -84,6 +88,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
                 long elapsedMs = (System.nanoTime() - start) / 1_000_000;
                 int batchSize = paymentsRecords.size();
                 dbConn.insertBatchMetrics(batchSize, elapsedMs);
+                // ======== MESSAGE PROCESSING
 
                 /*
                 Commit partition offset for batch of records returned by poll (max batch size is arbitrarily set to 50)
@@ -95,12 +100,31 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
                 map returned by nextOffsets and pass that to commitSync. This way I will only commit the offsets for
                 the partition that has been processed.
                 */
-                super.client.commitSync(records.nextOffsets());
+
+                /*
+                PROBLEM:
+                    The commit needs to occur in the main thread due to the consumer not being thread safe. However, this
+                    can't be done in the else statement - after the worker thread is spun to perform processing, the main
+                    thread will proceed to this logic and will commit the offsets before the processing has occurred.
+
+                SOLUTION:
+                    commitOffsets can't be in the else statement. We should be able to check the status of the
+                    worker thread. If it has terminated successfully we then commit the offset. If it is still running
+                    we remain paused.
+
+                    > Store the worker thread state and the offsets that it is working on records.nextOffsets().
+                        state of the thread can be retrieved by the main thread ConsumerThread.state
+                        records.nextOffsets also retrieved by main thread within else statement
+
+                    > For each iteration of the while loop, we should check the status of the worker thread to see if
+                    we should commit the offsets and resume. Ideally this check should happen before the poll call is
+                    made so that we can invoke resume and then immediately poll more records.
+                 */
+                super.client.commitSync(records.nextOffsets()); // needs to be done by the main thread
                 System.out.printf("--> successfully processed a batch of %s records, updated committed offset to %s%n",
                         batchSize,
                         records.nextOffsets().get(paymentsPartition).offset());
-
-                }
+                    }
 
             Thread.sleep(2000);
         }
