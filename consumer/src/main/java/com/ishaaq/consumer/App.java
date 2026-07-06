@@ -6,10 +6,8 @@ import javax.xml.crypto.Data;
 import java.util.HashMap;
 import java.util.Properties;
 import java.sql.*;
+import java.util.Random;
 
-/**
- * Hello world!
- */
 public class App {
     public static void main(String[] args) throws InterruptedException {
         BrokerConfig myBrokerConfig = new BrokerConfig();
@@ -39,14 +37,56 @@ public class App {
         // Call the consumeMessage method
 //        myConsumer.consumeMessages();
 
+        System.exit(0);
+        // TESTING
+        Random random = new Random();
+        boolean partitionPaused = false;
+
         while (true) {
-            // Check thread status - create instance field first of the type Thread
+            // Check thread status
+            if (myConsumer.workerThread == null) {
+                System.out.println("MAIN: worker thread has not yet been assigned a task.");
+            } else if (myConsumer.workerThread.getState() == Thread.State.TERMINATED) {
+                System.out.println("MAIN: i think the worker thread has successfully finished its task!");
+                System.out.println("MAIN: commiting offset");
+                System.out.println("MAIN: resuming partition");
+                partitionPaused = false;
+                System.out.println("MAIN: resetting thread");
+                myConsumer.workerThread = null;
+            } else {
+                System.out.println("MAIN: other condition: " + myConsumer.workerThread.getState());
+            }
 
-            // Create randomised condition to check if records have been returned
+            // This mocks pause() if records have been returned
+            if (partitionPaused) {
+                System.out.println("MAIN: pause() has been called, no new records will be fetched.");
+                continue;
+            }
+            // Create randomised condition to check if any records have been returned
+            boolean success = random.nextBoolean();
 
-            // define statement, if true then spin up the worker thread, sleep statement
+            if (success) {
+                System.out.println("MAIN: records have been returned. Creating new worker thread and starting processing!");
+                partitionPaused = true;
 
-            //
+                Runnable task = () ->
+                {
+                    Thread.currentThread().setName("WORKER");
+                    System.out.println(
+                            Thread.currentThread().getName()
+                                    + " is running");
+                    try {
+                        Thread.sleep(10000);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException("issue", e);
+                    }
+                };
+                myConsumer.workerThread = new Thread(task);
+                myConsumer.workerThread.start();
+            } else {
+                System.out.println("MAIN: no records returned. Waiting 5 seconds then continuing to next iteration.");
+                Thread.sleep(5000);
+            }
         }
 
     }

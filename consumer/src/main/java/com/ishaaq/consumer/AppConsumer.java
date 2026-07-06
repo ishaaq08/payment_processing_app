@@ -16,34 +16,26 @@ import java.util.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
+public class AppConsumer {
+    private KafkaConsumer<String, String> client;
     private DatabaseOps dbConn;
     private ObjectMapper objectMapper = new ObjectMapper();;
     private record RecordDetails(int payorId, int payeeId, int amount, String transactionId) {};
-    private Thread workerThread;
-
-    /*
-        Assign consumer to the partition payments-0
-
-        This project only uses the partition payments-0. Hence, I believe this is appropriate to be defined in the
-        constructor. This is also why assign() is used over subscribe(). It will be interesting to learn about the latter.
-        Therefore, given the use of assign(), no logic needs to be implemented that allows multiple partitions to
-        be assigned to this consumer.
-
- */
+    public Thread workerThread;
     private TopicPartition paymentsPartition = new TopicPartition("payments", 0);
 
     public AppConsumer(Map<String, Object> consumerConfigs, Properties databaseConfigs, String databaseUrl) {
-        super(consumerConfigs);
-        dbConn = new DatabaseOps(databaseConfigs, databaseUrl);
-    }
+        client = new KafkaConsumer<>(consumerConfigs);
+            /*
+            Assign consumer to the partition payments-0
 
-    // Abstract method override
-    @Override
-    public void createClient () {
-        System.out.println("--> setting consumer client to super.configs ");
-        super.client = new KafkaConsumer<>(super.configs);
-        super.client.assign(new ArrayList<>(Collections.singletonList(paymentsPartition)));
+            This project only uses the partition payments-0. Hence, I believe this is appropriate to be defined in the
+            constructor. This is also why assign() is used over subscribe(). It will be interesting to learn about the latter.
+            Therefore, given the use of assign(), no logic needs to be implemented that allows multiple partitions to
+            be assigned to this consumer.
+            */
+        client.assign(new ArrayList<>(Collections.singletonList(paymentsPartition)));
+        dbConn = new DatabaseOps(databaseConfigs, databaseUrl);
     }
 
     /**
@@ -58,7 +50,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
         System.out.println("--> consuming message from payments-0");
 
         while (true) {
-            ConsumerRecords<String, String> records = super.client.poll(Duration.ofMillis(100));
+            ConsumerRecords<String, String> records = client.poll(Duration.ofMillis(100));
             List<ConsumerRecord<String, String>> paymentsRecords = records.records(paymentsPartition);
 
             if (paymentsRecords.isEmpty()) {
@@ -120,7 +112,7 @@ public class AppConsumer extends Builder<KafkaConsumer<String, String>> {
                     we should commit the offsets and resume. Ideally this check should happen before the poll call is
                     made so that we can invoke resume and then immediately poll more records.
                  */
-                super.client.commitSync(records.nextOffsets()); // needs to be done by the main thread
+                client.commitSync(records.nextOffsets()); // needs to be done by the main thread
                 System.out.printf("--> successfully processed a batch of %s records, updated committed offset to %s%n",
                         batchSize,
                         records.nextOffsets().get(paymentsPartition).offset());
