@@ -77,13 +77,12 @@ public class AppConsumer {
             } else {
                 handleSetupForNewBatch(records, paymentsRecords);
 
-                // ======== MESSAGE PROCESSING
-
-                /*
+                // MESSAGE PROCESSING
                 Task processingTask = new Task(dbConn, records, nextBatchSizeToInsert);
                 workerThread = new Thread(processingTask);
                 workerThread.start();
-                 */
+                // == End of processing
+
                     }
 
 //            Thread.sleep(2000);
