@@ -66,18 +66,18 @@ public class AppConsumer {
             ConsumerRecords<String, String> records = client.poll(Duration.ofMillis(100));
             List<ConsumerRecord<String, String>> paymentsRecords = records.records(paymentsPartition);
 
-            // Worker thread is processing previous batch of records so partition is still paused
+            // Scenario A: Worker thread is currently processing a batch, thus the partition is paused
             if (isPaused) {
                 continue;
-            // No records have been returned e.g. consumer fully caught (zero-consumer lag)
+            // Scenario B: No records have been returned e.g. consumer fully caught up (zero-consumer lag)
             } else if (paymentsRecords.isEmpty()) {
                 System.out.println("--> no records returned from poll(). Skipping to next iteration.");
                 continue;
-            // New records have been fetched
+            // Scenario C: New records have been fetched and need to be processed
             } else {
                 handleSetupForNewBatch(records, paymentsRecords);
 
-                // MESSAGE PROCESSING
+                // Process batch on worker thread
                 Task processingTask = new Task(dbConn, records, nextBatchSizeToInsert);
                 workerThread = new Thread(processingTask);
                 workerThread.start();
