@@ -84,31 +84,9 @@ public class AppConsumer {
                 workerThread = new Thread(processingTask);
                 workerThread.start();
                  */
-                System.out.println("========== Processing batch and starting timer ==========");
-                long start = System.nanoTime();
-
-                for (ConsumerRecord<String, String> record : records) {
-                    System.out.printf("== Processing offset: %s== %n", record.offset());
-
-                    // Extract message details
-                    RecordDetails recordDetails = parseConsumerRecord(record);
-
-                    // Process message
-                    processMessage(
-                            recordDetails.payorId,
-                            recordDetails.payeeId,
-                            recordDetails.amount,
-                            recordDetails.transactionId
-                    );
-                }
-                long elapsedMs = (System.nanoTime() - start) / 1_000_000;
-                dbConn.insertBatchMetrics(nextBatchSizeToInsert, elapsedMs);
-                // ======== MESSAGE PROCESSING
-
-
                     }
 
-            Thread.sleep(2000);
+//            Thread.sleep(2000);
         }
 
     }
