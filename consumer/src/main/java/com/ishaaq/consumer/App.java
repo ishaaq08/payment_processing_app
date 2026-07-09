@@ -37,7 +37,7 @@ public class App {
         // Call the consumeMessage method
 //        myConsumer.consumeMessages();
 
-        System.exit(0);
+//        System.exit(0);
         // TESTING
         Random random = new Random();
         boolean partitionPaused = false;
@@ -45,36 +45,40 @@ public class App {
         while (true) {
             // Check thread status
             if (myConsumer.workerThread == null) {
-                System.out.println("MAIN: worker thread has not yet been assigned a task.");
+                System.out.println("MAIN: Worker thread has not yet been assigned a task.");
             } else if (myConsumer.workerThread.getState() == Thread.State.TERMINATED) {
-                System.out.println("MAIN: i think the worker thread has successfully finished its task!");
+                System.out.println("MAIN: Worker thread terminated. Checking worker thread status: " + myConsumer.workerThread.getState());
                 System.out.println("MAIN: commiting offset");
-                System.out.println("MAIN: resuming partition");
                 partitionPaused = false;
+                System.out.println("MAIN: resuming partition --> partitionPaused = " + partitionPaused);
                 System.out.println("MAIN: resetting thread");
                 myConsumer.workerThread = null;
             } else {
-                System.out.println("MAIN: other condition: " + myConsumer.workerThread.getState());
+                System.out.println("MAIN: Condition of workerThread = " + myConsumer.workerThread.getState());
             }
 
             // This mocks pause() if records have been returned
             if (partitionPaused) {
-                System.out.println("MAIN: pause() has been called, no new records will be fetched.");
+                System.out.println("MAIN: No records will be fetched --> partitionPaused = " + partitionPaused + "\n");
+                Thread.sleep(5000);
                 continue;
             }
-            // Create randomised condition to check if any records have been returned
+
+            System.out.println("MAIN: Partition is not paused --> partitionPaused = " + partitionPaused);
+
             boolean success = random.nextBoolean();
 
             if (success) {
-                System.out.println("MAIN: records have been returned. Creating new worker thread and starting processing!");
+                System.out.println("MAIN: Records returned --> success == " + success);
                 partitionPaused = true;
+                System.out.println("MAIN: Partition paused --> partitionPaused = " + partitionPaused);
 
                 Runnable task = () ->
                 {
-                    Thread.currentThread().setName("WORKER");
+                    Thread.currentThread().setName("WORKER: ");
                     System.out.println(
                             Thread.currentThread().getName()
-                                    + " is running");
+                                    + " running processing workload\n");
                     try {
                         Thread.sleep(10000);
                     } catch (InterruptedException e) {
@@ -84,7 +88,7 @@ public class App {
                 myConsumer.workerThread = new Thread(task);
                 myConsumer.workerThread.start();
             } else {
-                System.out.println("MAIN: no records returned. Waiting 5 seconds then continuing to next iteration.");
+                System.out.println("MAIN: no records returned. Waiting 5 seconds then continuing to next iteration.\n");
                 Thread.sleep(5000);
             }
         }

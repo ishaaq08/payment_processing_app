@@ -24,6 +24,10 @@ public class AppConsumer {
     public Thread workerThread;
     private TopicPartition paymentsPartition = new TopicPartition("payments", 0);
 
+    private Map<TopicPartition, OffsetAndMetadata> nextCommittedOffset;
+    private int nextBatchSizeToInsert;
+    private boolean isPaused;
+
     public AppConsumer(Map<String, Object> consumerConfigs, Properties databaseConfigs, String databaseUrl) {
         client = new KafkaConsumer<>(consumerConfigs);
             /*
@@ -50,16 +54,36 @@ public class AppConsumer {
         System.out.println("--> consuming message from payments-0");
 
         while (true) {
+            // Check thread status
+            if (workerThread.getState() == null) {
+                System.out.println("--> no task has been assigned to the worker thread");
+            } else if (workerThread.getState() == Thread.State.TERMINATED) {
+                handleCompletedWorkerThread();
+            } else {
+                System.out.println("--> worker thread state: " + workerThread.getState());
+            }
+
             ConsumerRecords<String, String> records = client.poll(Duration.ofMillis(100));
             List<ConsumerRecord<String, String>> paymentsRecords = records.records(paymentsPartition);
 
-            if (paymentsRecords.isEmpty()) {
+            // Worker thread is processing previous batch of records so partition is still paused
+            if (isPaused) {
+                continue;
+            // No records have been returned e.g. consumer fully caught (zero-consumer lag)
+            } else if (paymentsRecords.isEmpty()) {
                 System.out.println("--> no records returned from poll(). Skipping to next iteration.");
                 continue;
+            // New records have been fetched
             } else {
-                // pause the partition from the main thread
+                handleSetupForNewBatch(records, paymentsRecords);
 
                 // ======== MESSAGE PROCESSING
+
+                /*
+                Task processingTask = new Task(dbConn, records, nextBatchSizeToInsert);
+                workerThread = new Thread(processingTask);
+                workerThread.start();
+                 */
                 System.out.println("========== Processing batch and starting timer ==========");
                 long start = System.nanoTime();
 
@@ -78,44 +102,10 @@ public class AppConsumer {
                     );
                 }
                 long elapsedMs = (System.nanoTime() - start) / 1_000_000;
-                int batchSize = paymentsRecords.size();
-                dbConn.insertBatchMetrics(batchSize, elapsedMs);
+                dbConn.insertBatchMetrics(nextBatchSizeToInsert, elapsedMs);
                 // ======== MESSAGE PROCESSING
 
-                /*
-                Commit partition offset for batch of records returned by poll (max batch size is arbitrarily set to 50)
-                If processMessage does not yield an error then the message processing was successful. Message will be
-                written to db. Transactions will be committed. Now the partition offsets can be committed.
 
-                commitSync(Map<TopicPartition, OffsetAndMetadata>) --> nextOffsets() returns this!
-                But, if I did a for loop per partition or topic then I would need to access the specific key from the
-                map returned by nextOffsets and pass that to commitSync. This way I will only commit the offsets for
-                the partition that has been processed.
-                */
-
-                /*
-                PROBLEM:
-                    The commit needs to occur in the main thread due to the consumer not being thread safe. However, this
-                    can't be done in the else statement - after the worker thread is spun to perform processing, the main
-                    thread will proceed to this logic and will commit the offsets before the processing has occurred.
-
-                SOLUTION:
-                    commitOffsets can't be in the else statement. We should be able to check the status of the
-                    worker thread. If it has terminated successfully we then commit the offset. If it is still running
-                    we remain paused.
-
-                    > Store the worker thread state and the offsets that it is working on records.nextOffsets().
-                        state of the thread can be retrieved by the main thread ConsumerThread.state
-                        records.nextOffsets also retrieved by main thread within else statement
-
-                    > For each iteration of the while loop, we should check the status of the worker thread to see if
-                    we should commit the offsets and resume. Ideally this check should happen before the poll call is
-                    made so that we can invoke resume and then immediately poll more records.
-                 */
-                client.commitSync(records.nextOffsets()); // needs to be done by the main thread
-                System.out.printf("--> successfully processed a batch of %s records, updated committed offset to %s%n",
-                        batchSize,
-                        records.nextOffsets().get(paymentsPartition).offset());
                     }
 
             Thread.sleep(2000);
@@ -230,4 +220,53 @@ public class AppConsumer {
 
         }
 
+    /**
+     * After the worker thread has successfully processed the workload it will have a state of Thread.TERMINATED.
+     * 4 operations are then executed:
+     * <p>
+     *     <ol>
+     *         <li>Commit offsets for batch</li>
+     *         <li>Resume the partition</li>
+     *         <li>Update the isPaused flag to false</li>
+     *         <li>Set the worker thread instance variable to null</li>
+     *     </ol>
+     * </p>
+     */
+    private void handleCompletedWorkerThread () {
+        client.commitSync(nextCommittedOffset);
+        client.resume(new ArrayList<>(Collections.singletonList(paymentsPartition)));
+        isPaused = false;
+        workerThread = null;
+
+        System.out.printf("--> successfully processed a batch of %s records, updated committed offset to %s%n",
+                nextBatchSizeToInsert,
+                nextCommittedOffset.get(paymentsPartition).offset());
+
+    }
+
+    /**
+     * Once a new batch of records has been returned by poll several operations need to occur:
+     * <p>
+     *     <ol>
+     *         <li>Store the committed offset for the batch in the instance field nextCommittedOffset but don't commit!</li>
+     *         <li>Store the size of the batch</li>
+     *         <li>Pause the partition</li>
+     *         <li>Set the isPaused flag to true</li>
+     *     </ol>
+     * </p>
+     *
+     * @param records: The batch of records returned in the previous poll() call
+     * @param paymentsRecords: A List of the batch of records so the size() method can be used to determine batch size
+     */
+    private void handleSetupForNewBatch (ConsumerRecords<String, String> records, List<ConsumerRecord<String, String>> paymentsRecords) {
+        nextCommittedOffset = records.nextOffsets();
+        nextBatchSizeToInsert = paymentsRecords.size();
+        client.pause(new ArrayList<>(Collections.singletonList(paymentsPartition)));
+        isPaused = true;
+    }
+
+
+
 }
+
+
