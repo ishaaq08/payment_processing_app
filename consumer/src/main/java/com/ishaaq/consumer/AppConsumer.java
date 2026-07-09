@@ -54,14 +54,7 @@ public class AppConsumer {
         System.out.println("--> consuming message from payments-0");
 
         while (true) {
-            // Check thread status
-            if (workerThread == null) {
-                System.out.println("--> no task has been assigned to the worker thread");
-            } else if (workerThread.getState() == Thread.State.TERMINATED) {
-                handleCompletedWorkerThread();
-            } else {
-                System.out.println("--> worker thread state: " + workerThread.getState());
-            }
+            handleThreadStatus();
 
             ConsumerRecords<String, String> records = client.poll(Duration.ofMillis(100));
             List<ConsumerRecord<String, String>> paymentsRecords = records.records(paymentsPartition);
@@ -243,16 +236,18 @@ public class AppConsumer {
     }
 
     /**
-     * This method checks the status of workerThread at the start of each iteration of the while loop in
-     * consumeMessages. This is necessary so we know when to call handleCompletedWorkerThread. The workerThread is
-     * compared to 3 different statuses:
+     * This method checks the status of workerThread, from the main thread, at the start of each iteration of the while loop in
+     * consumeMessages. It is necessary to monitor the status so we know whether workerThread has completed processing.
+     * If the processing is complete handleCompletedWorkerThread is called which commits the offsets and resumes the partition.
+     * This must be performed from the main thread as the consumer is not thread-safe.
+     * <p>The workerThread is checked against 3 different statuses:</p>
      * <p>
-     *     <ul>
+     *     <ol>
      *         <li>null: Occurs on 2 occasions: 1) First iteration of while loop before a workload has been assigned 2)
-     *         workerThread successfully finished processing a workload and has been set to null.</li>
+     *         workerThread successfully finished processing a workload and has been set to null as in handleCompletedWorkerThread.</li>
      *         <li>Thread.TERMINATED: workerThread has finished processing its workload - successfully or unsuccessfully.</li>
      *         <li>Any other state: workerThread is currently processing a workload.</li>
-     *     </ul>
+     *     </ol>
      * </p>
      */
     private void handleThreadStatus() {
