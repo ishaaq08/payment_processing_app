@@ -55,7 +55,7 @@ public class AppConsumer {
 
         while (true) {
             // Check thread status
-            if (workerThread.getState() == null) {
+            if (workerThread == null) {
                 System.out.println("--> no task has been assigned to the worker thread");
             } else if (workerThread.getState() == Thread.State.TERMINATED) {
                 handleCompletedWorkerThread();
