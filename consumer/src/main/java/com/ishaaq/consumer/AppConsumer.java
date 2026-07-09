@@ -242,7 +242,28 @@ public class AppConsumer {
         isPaused = true;
     }
 
-
+    /**
+     * This method checks the status of workerThread at the start of each iteration of the while loop in
+     * consumeMessages. This is necessary so we know when to call handleCompletedWorkerThread. The workerThread is
+     * compared to 3 different statuses:
+     * <p>
+     *     <ul>
+     *         <li>null: Occurs on 2 occasions: 1) First iteration of while loop before a workload has been assigned 2)
+     *         workerThread successfully finished processing a workload and has been set to null.</li>
+     *         <li>Thread.TERMINATED: workerThread has finished processing its workload - successfully or unsuccessfully.</li>
+     *         <li>Any other state: workerThread is currently processing a workload.</li>
+     *     </ul>
+     * </p>
+     */
+    private void handleThreadStatus() {
+        if (workerThread == null) {
+            System.out.println("--> no task has been assigned to the worker thread");
+        } else if (workerThread.getState() == Thread.State.TERMINATED) {
+            handleCompletedWorkerThread();
+        } else {
+            System.out.println("--> worker thread state: " + workerThread.getState());
+        }
+    }
 
 }
 
