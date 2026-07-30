@@ -61,6 +61,7 @@ public class AppConsumer {
 
             // Scenario A: Worker thread is currently processing a batch, thus the partition is paused
             if (isPaused) {
+                System.out.println("--> ❌ partition is paused.");
                 continue;
             // Scenario B: No records have been returned e.g. consumer fully caught up (zero-consumer lag)
             } else if (paymentsRecords.isEmpty()) {
@@ -72,6 +73,28 @@ public class AppConsumer {
 
                 // Process batch on worker thread
                 Task processingTask = new Task(dbConn, records, nextBatchSizeToInsert);
+
+                /*
+                class ThreadExceptionData:
+                    public boolean isThreadWithoutException = true;
+                    public Exception threadException = null;
+
+                class Worker:
+                    Thread workerThread
+                    ThreadExceptionData workerThreadExceptionData = new ThreadExceptionData(
+
+                    Worker(Task processingTask):
+                        workerThread = new Thread(processingTask)
+
+
+
+                instance field: Worker consumerWorker
+
+                Worker worker = new Worker(processingTask)
+
+
+                 */
+
                 workerThread = new Thread(processingTask);
                 workerThread.start();
                 // == End of processing

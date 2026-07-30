@@ -20,7 +20,7 @@ public class ProcessingHelpers {
      * @return recordDetails: a RecordDetails record containing payorId, payeeId, amount (all int), and transactionId (String)
      */
     static public RecordDetails parseConsumerRecord(ConsumerRecord<String, String> record) {
-        System.out.println("--> ENTERING METHOD: parsing record details");
+        System.out.println("--> entering method: parsing record details");
 
         String transactionId = record.key();
         String payloadJson = record.value();
@@ -60,7 +60,7 @@ public class ProcessingHelpers {
      * Those RuntimeExceptions are caught here.
      */
     static public void processMessage(DatabaseOps dbConn, int payorId, int payeeId, int amount, String transactionId) {
-        System.out.println("--> ENTERING METHOD: processing message");
+        System.out.println("--> entering method: processing message");
 
         boolean doesTransactionExist = dbConn.transactionExists(transactionId);
 
