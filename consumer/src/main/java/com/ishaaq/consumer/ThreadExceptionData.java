@@ -18,7 +18,7 @@ public class ThreadExceptionData {
 
     // Setter
     public void setThreadException(Exception e) {
-        threadWithoutException = true;
+        threadWithoutException = false;
         threadException = e;
     }
 }
