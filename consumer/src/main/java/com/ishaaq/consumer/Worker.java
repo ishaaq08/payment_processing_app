@@ -9,8 +9,7 @@ public class Worker {
 
     Worker (DatabaseOps dbConn, ConsumerRecords<String, String> records, int nextBatchSizeToInsert) {
         setWorkerThread(dbConn, records, nextBatchSizeToInsert);
-        //
-        // workerThread.setUncaughtExceptionHandler(  );
+        workerThread.setUncaughtExceptionHandler(new WorkerExceptionHandler(workerThreadExceptionData));
     }
 
     // Getter(s)
