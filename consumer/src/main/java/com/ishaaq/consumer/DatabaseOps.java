@@ -46,7 +46,7 @@ public class DatabaseOps {
     }
 
     public void performUpdate(String table, int newValue, int rowId) {
-        System.out.println("--> ENTERING METHOD: performing update on table " + table);
+        System.out.println("--> entering method: performing update on table " + table);
         String sqlQuery = "";
 
         // VALIDATION: Not a fan of the manual definition of tables in sqlQuery. Not scalable
@@ -71,7 +71,7 @@ public class DatabaseOps {
     }
 
     public void insertTransaction(int payor, int payee, int amount, String transactionId, String status) {
-        System.out.println("==--> ENTERING METHOD: inserting transaction into db");
+        System.out.println("--> entering method: inserting transaction into db");
 
         // Define SQL query
         String sqlQuery = "INSERT INTO tbl_transactions(transaction_id, payor, payee, amount, status) VALUES (?,?,?,?,?);";
@@ -140,7 +140,7 @@ public class DatabaseOps {
 
             // Validate the update
             if (updateResult ==1) {
-                System.out.println("--> successfully inserted batch metric %s%n");
+                System.out.printf("--> successfully inserted batch metric %s%n", batchSize);
             } else {
                 throw new RuntimeException("Encountered issue during executeUpdate(). Expected 1 to be returned.");
             }

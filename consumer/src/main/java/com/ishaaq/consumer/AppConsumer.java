@@ -21,9 +21,8 @@ public class AppConsumer {
     private DatabaseOps dbConn;
     private ObjectMapper objectMapper = new ObjectMapper();;
     private record RecordDetails(int payorId, int payeeId, int amount, String transactionId) {};
-    public Thread workerThread;
+    private Worker consumerWorker;
     private TopicPartition paymentsPartition = new TopicPartition("payments", 0);
-
     private Map<TopicPartition, OffsetAndMetadata> nextCommittedOffset;
     private int nextBatchSizeToInsert;
     private boolean isPaused;
@@ -61,6 +60,7 @@ public class AppConsumer {
 
             // Scenario A: Worker thread is currently processing a batch, thus the partition is paused
             if (isPaused) {
+                System.out.println("--> ❌ partition is paused.");
                 continue;
             // Scenario B: No records have been returned e.g. consumer fully caught up (zero-consumer lag)
             } else if (paymentsRecords.isEmpty()) {
@@ -68,12 +68,12 @@ public class AppConsumer {
                 continue;
             // Scenario C: New records have been fetched and need to be processed
             } else {
+                System.out.println(" --> new records have been fetched.");
                 handleSetupForNewBatch(records, paymentsRecords);
 
                 // Process batch on worker thread
-                Task processingTask = new Task(dbConn, records, nextBatchSizeToInsert);
-                workerThread = new Thread(processingTask);
-                workerThread.start();
+                consumerWorker = new Worker(dbConn, records, nextBatchSizeToInsert);
+                consumerWorker.runWorkerThread();
                 // == End of processing
 
                     }
@@ -99,7 +99,7 @@ public class AppConsumer {
         client.commitSync(nextCommittedOffset);
         client.resume(new ArrayList<>(Collections.singletonList(paymentsPartition)));
         isPaused = false;
-        workerThread = null;
+        consumerWorker = null;
 
         System.out.printf("--> successfully processed a batch of %s records, updated committed offset to %s%n",
                 nextBatchSizeToInsert,
@@ -144,12 +144,27 @@ public class AppConsumer {
      * </p>
      */
     private void handleThreadStatus() {
-        if (workerThread == null) {
+        /*
+        Scenario A
+            First iteration of while loop
+            OR no new records have been fetched. The last time records were fetched and successfully processed would have
+            resulted in workerThread being set to null.
+         */
+        if (consumerWorker == null) {
             System.out.println("--> no task has been assigned to the worker thread");
-        } else if (workerThread.getState() == Thread.State.TERMINATED) {
+        /*
+        Scenario B
+            Worker thread has terminated and exited successfully without throwing any exceptions.
+         */
+        } else if (consumerWorker.getWorkerThreadState() == Thread.State.TERMINATED
+                && consumerWorker.workerThreadExceptionData.isThreadWithoutException()) {
             handleCompletedWorkerThread();
+        /*
+        Scenario C
+            The worker thread is in any state apart from [ TERMINATED & threadWithoutException = false ]
+         */
         } else {
-            System.out.println("--> worker thread state: " + workerThread.getState());
+            System.out.println("--> worker thread state: " + consumerWorker.getWorkerThreadState());
         }
     }
 
