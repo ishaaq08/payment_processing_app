@@ -21,7 +21,7 @@ public class AppConsumer {
     private DatabaseOps dbConn;
     private ObjectMapper objectMapper = new ObjectMapper();;
     private record RecordDetails(int payorId, int payeeId, int amount, String transactionId) {};
-    private Worker consumerWorker;
+    private Worker consumerWorker = new Worker();
     private TopicPartition paymentsPartition = new TopicPartition("payments", 0);
     private Map<TopicPartition, OffsetAndMetadata> nextCommittedOffset;
     private int nextBatchSizeToInsert;
@@ -73,7 +73,7 @@ public class AppConsumer {
 
                 // Process batch on worker thread
                 // consumerWorker.setWorkerThread(args...) --> this includes the exception handler
-                consumerWorker = new Worker(dbConn, records, nextBatchSizeToInsert);
+                consumerWorker.setWorkerThread(dbConn, records, nextBatchSizeToInsert);
                 consumerWorker.runWorkerThread();
                 // == End of processing
 
@@ -100,7 +100,7 @@ public class AppConsumer {
         client.commitSync(nextCommittedOffset);
         client.resume(new ArrayList<>(Collections.singletonList(paymentsPartition)));
         isPaused = false;
-        consumerWorker = null;
+        consumerWorker.resetWorker();
 
         System.out.printf("--> successfully processed a batch of %s records, updated committed offset to %s%n",
                 nextBatchSizeToInsert,

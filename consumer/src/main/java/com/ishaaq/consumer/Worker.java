@@ -4,7 +4,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.protocol.types.Field;
 
 public class Worker {
-    private Thread workerThread;
+    private Thread workerThread = null;
     public ThreadExceptionData workerThreadExceptionData = new ThreadExceptionData();
 
     // Getter(s)
@@ -27,6 +27,11 @@ public class Worker {
 
     public Thread.State getWorkerThreadState() {
         return workerThread.getState();
+    }
+
+    public void resetWorker() {
+        workerThread = null;
+        workerThreadExceptionData = new ThreadExceptionData();
     }
 
 }
