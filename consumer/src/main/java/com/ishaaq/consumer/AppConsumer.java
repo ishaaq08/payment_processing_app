@@ -52,7 +52,7 @@ public class AppConsumer {
     public void consumeMessages() throws InterruptedException {
         System.out.println("--> consuming message from payments-0");
 
-        while (true) {
+        while (consumerWorker.workerThreadExceptionData.isThreadWithoutException()) {
             handleThreadStatus();
 
             ConsumerRecords<String, String> records = client.poll(Duration.ofMillis(100));
@@ -72,6 +72,7 @@ public class AppConsumer {
                 handleSetupForNewBatch(records, paymentsRecords);
 
                 // Process batch on worker thread
+                // consumerWorker.setWorkerThread(args...) --> this includes the exception handler
                 consumerWorker = new Worker(dbConn, records, nextBatchSizeToInsert);
                 consumerWorker.runWorkerThread();
                 // == End of processing
