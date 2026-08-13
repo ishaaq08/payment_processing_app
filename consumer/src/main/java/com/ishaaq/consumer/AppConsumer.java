@@ -75,15 +75,16 @@ public class AppConsumer {
                 handleSetupForNewBatch(records, paymentsRecords);
 
                 // Process batch on worker thread
-                // consumerWorker.setWorkerThread(args...) --> this includes the exception handler
                 consumerWorker.setWorkerThread(dbConn, records, nextBatchSizeToInsert);
                 consumerWorker.runWorkerThread();
                 // == End of processing
 
                     }
 
-            Thread.sleep(2000);
+//            Thread.sleep(2000);
         }
+
+        System.out.println("ERROR: EXITING WHILE LOOP");
 
     }
 

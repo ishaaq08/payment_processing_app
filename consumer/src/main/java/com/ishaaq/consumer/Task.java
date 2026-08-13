@@ -19,6 +19,10 @@ public class Task implements Runnable{
     public void run() {
         long start = System.nanoTime();
 
+        if (true) {
+            throw new RuntimeException("ERROR: This is a staged exception!");
+        }
+
         for (ConsumerRecord<String, String> record : records) {
             System.out.printf("== Processing offset: %s== %n", record.offset());
 

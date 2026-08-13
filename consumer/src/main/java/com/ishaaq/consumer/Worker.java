@@ -26,7 +26,11 @@ public class Worker {
     }
 
     public Thread.State getWorkerThreadState() {
-        return workerThread.getState();
+        if (workerThread == null) {
+            return null;
+        } else {
+            return workerThread.getState();
+        }
     }
 
     public void resetWorker() {
