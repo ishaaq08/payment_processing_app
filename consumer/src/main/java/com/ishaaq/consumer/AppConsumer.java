@@ -53,8 +53,10 @@ public class AppConsumer {
         System.out.println("--> consuming message from payments-0");
 
         while (consumerWorker.workerThreadExceptionData.isThreadWithoutException()) {
-            //
-            handleThreadStatus();
+            boolean handleThreadStatusResult = handleThreadStatus();
+            if (handleThreadStatusResult) {
+                continue;
+            }
 
             ConsumerRecords<String, String> records = client.poll(Duration.ofMillis(100));
             List<ConsumerRecord<String, String>> paymentsRecords = records.records(paymentsPartition);
@@ -135,15 +137,19 @@ public class AppConsumer {
      * consumeMessages. It is necessary to monitor the status so we know whether workerThread has completed processing.
      * If the processing is complete handleCompletedWorkerThread is called which commits the offsets and resumes the partition.
      * This must be performed from the main thread as the consumer is not thread-safe.
-     * <p>The workerThread is checked against 3 different statuses:</p>
+     * <p>4 scenarios can occur:</p>
      * <p>
      *     <ol>
-     *         <li>null: Occurs on 2 occasions: 1) First iteration of while loop before a workload has been assigned 2)
-     *         workerThread successfully finished processing a workload and has been set to null as in handleCompletedWorkerThread.</li>
-     *         <li>Thread.TERMINATED: workerThread has finished processing its workload - successfully or unsuccessfully.</li>
-     *         <li>Any other state: workerThread is currently processing a workload.</li>
+     *         <li>Scenario A: Occurs on 2 occasions 1) First iteration of while loop before a workload has been assigned 2)
+     *         No new records have been fetched.</li>
+     *         <li>Scenario B: Thread has terminated WITHOUT an exception i.e. processing of the workload was successful.</li>
+     *         <li>Scenario C: Thread has terminated WITH an exception i.e. processing of the workload failed.</li>
+     *         <li>Scenario D: Any other state in which the thread is still running or has been paused.</li>
      *     </ol>
      * </p>
+     * @return {@code true}: Scenario C has taken place. This instructs the encapsulating logic to skip to
+     * the next iteration of the while loop. The condition of the while loop will resort to false and the consumer will be
+     * shutdown. {@code false}: Scenario A, B or D has taken place.
      */
     private boolean handleThreadStatus() {
         boolean exitLoop = false;
