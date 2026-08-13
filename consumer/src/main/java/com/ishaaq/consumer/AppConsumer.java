@@ -162,9 +162,23 @@ public class AppConsumer {
             handleCompletedWorkerThread();
         /*
         Scenario C
-            The worker thread is in any state apart from [ TERMINATED & threadWithoutException = false ]
+            The worker thread has terminated and has thrown an exception. This isn't detected by the while loop
+
+            Example: Worker thread is running in the background. It hasn't failed yet. The while loop
+
+            ACTION:
+                Exit while loop
+                Shutdown consumer
          */
-        } else {
+        } else if (consumerWorker.getWorkerThreadState() == Thread.State.TERMINATED
+                && !consumerWorker.workerThreadExceptionData.isThreadWithoutException()) {
+            continue;
+        }
+        /*
+        Scenario D
+            All other situations
+         */
+        else {
             System.out.println("--> worker thread state: " + consumerWorker.getWorkerThreadState());
         }
     }
