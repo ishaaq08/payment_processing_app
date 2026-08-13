@@ -53,6 +53,7 @@ public class AppConsumer {
         System.out.println("--> consuming message from payments-0");
 
         while (consumerWorker.workerThreadExceptionData.isThreadWithoutException()) {
+            //
             handleThreadStatus();
 
             ConsumerRecords<String, String> records = client.poll(Duration.ofMillis(100));
@@ -144,7 +145,8 @@ public class AppConsumer {
      *     </ol>
      * </p>
      */
-    private void handleThreadStatus() {
+    private boolean handleThreadStatus() {
+        boolean exitLoop = false;
         /*
         Scenario A
             First iteration of while loop
@@ -162,17 +164,15 @@ public class AppConsumer {
             handleCompletedWorkerThread();
         /*
         Scenario C
-            The worker thread has terminated and has thrown an exception. This isn't detected by the while loop
-
-            Example: Worker thread is running in the background. It hasn't failed yet. The while loop
-
-            ACTION:
-                Exit while loop
-                Shutdown consumer
+            This situation applies where the thread terminates with an exception after the while loop condition check
+            but before this function has been called. We want to skip to the next iteration of the loop. The loop
+            condition will be checked again. Since isThreadWithoutException will be false the while loop will exit
+            and the consumer will be shutdown.
          */
         } else if (consumerWorker.getWorkerThreadState() == Thread.State.TERMINATED
                 && !consumerWorker.workerThreadExceptionData.isThreadWithoutException()) {
-            continue;
+
+            exitLoop = true;
         }
         /*
         Scenario D
@@ -181,6 +181,8 @@ public class AppConsumer {
         else {
             System.out.println("--> worker thread state: " + consumerWorker.getWorkerThreadState());
         }
+
+        return exitLoop;
     }
 
 }
