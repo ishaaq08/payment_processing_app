@@ -17,7 +17,7 @@ public class App {
         HashMap<String, Object> consumerConfigs = new HashMap<>();
         consumerConfigs.put("bootstrap.servers", brokerAddress);
         consumerConfigs.put("group.id", "test");
-        consumerConfigs.put("enable.auto.commit", "true");
+        consumerConfigs.put("enable.auto.commit", "false");
         consumerConfigs.put("auto.commit.interval.ms", "1000");
         consumerConfigs.put("auto.offset.reset", "earliest");
         consumerConfigs.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");

@@ -49,7 +49,7 @@ public class AppConsumer {
      * which is used to adjust max.poll.interval.ms If no records are returned by poll we proceed to the next iteration
      * of the while loop.
      */
-    public void consumeMessages() throws InterruptedException {
+    public void consumeMessages() throws Exception {
         System.out.println("--> consuming message from payments-0");
 
         while (consumerWorker.workerThreadExceptionData.isThreadWithoutException()) {
@@ -74,7 +74,7 @@ public class AppConsumer {
                 System.out.println(" --> new records have been fetched.");
                 handleSetupForNewBatch(records, paymentsRecords);
 
-                // Process batch on worker thread
+                // == Process batch on worker thread
                 consumerWorker.setWorkerThread(dbConn, records, nextBatchSizeToInsert);
                 consumerWorker.runWorkerThread();
                 // == End of processing
@@ -84,7 +84,7 @@ public class AppConsumer {
 //            Thread.sleep(2000);
         }
 
-        System.out.println("ERROR: EXITING WHILE LOOP");
+        throw consumerWorker.workerThreadExceptionData.getThreadException();
 
     }
 
