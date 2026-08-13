@@ -160,7 +160,7 @@ public class AppConsumer {
             OR no new records have been fetched. The last time records were fetched and successfully processed would have
             resulted in workerThread being set to null.
          */
-        if (consumerWorker == null) {
+        if (consumerWorker.getWorkerThreadState() == null) {
             System.out.println("--> no task has been assigned to the worker thread");
         /*
         Scenario B
