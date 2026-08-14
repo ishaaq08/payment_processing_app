@@ -6,18 +6,20 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import java.time.Duration;
 import java.util.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class AppConsumer {
+    // Kafka-related
     private KafkaConsumer<String, String> client;
-    private DatabaseOps dbConn;
-    private ObjectMapper objectMapper = new ObjectMapper();;
-    private record RecordDetails(int payorId, int payeeId, int amount, String transactionId) {};
-    private Worker consumerWorker = new Worker();
     private TopicPartition paymentsPartition = new TopicPartition("payments", 0);
     private Map<TopicPartition, OffsetAndMetadata> nextCommittedOffset;
+    // Database
+    private DatabaseOps dbConn;
+    // Processing
     private int nextBatchSizeToInsert;
     private boolean isPaused;
+    // Thread
+    private ThreadExceptionData mainThreadExceptionData = new ThreadExceptionData();
+    private Worker consumerWorker = new Worker();
 
     public AppConsumer(Map<String, Object> consumerConfigs, Properties databaseConfigs, String databaseUrl) {
         client = new KafkaConsumer<>(consumerConfigs);
@@ -44,39 +46,52 @@ public class AppConsumer {
     public void consumeMessages() throws Exception {
         System.out.println("--> consuming message from payments-0");
 
-        while (consumerWorker.workerThreadExceptionData.isThreadWithoutException()) {
-            boolean handleThreadStatusResult = handleThreadStatus();
-            if (handleThreadStatusResult) {
-                continue;
+        while (consumerWorker.workerThreadExceptionData.isThreadWithoutException()
+                && mainThreadExceptionData.isThreadWithoutException() ) {
+            try {
+                boolean handleThreadStatusResult = handleThreadStatus();
+                if (handleThreadStatusResult) {
+                    continue;
+                }
+
+                ConsumerRecords<String, String> records = client.poll(Duration.ofMillis(100));
+                List<ConsumerRecord<String, String>> paymentsRecords = records.records(paymentsPartition);
+
+                // Scenario A: Worker thread is currently processing a batch, thus the partition is paused
+                if (isPaused) {
+                    System.out.println("--> partition is paused.");
+                    continue;
+                    // Scenario B: No records have been returned e.g. consumer fully caught up (zero-consumer lag)
+                } else if (paymentsRecords.isEmpty()) {
+                    System.out.println("--> no records returned from poll(). Skipping to next iteration.");
+                    continue;
+                    // Scenario C: New records have been fetched and need to be processed
+                } else {
+                    System.out.println("--> new records have been fetched.");
+                    handleSetupForNewBatch(records, paymentsRecords);
+
+                    // == Process batch on worker thread
+                    consumerWorker.setWorkerThread(dbConn, records, nextBatchSizeToInsert);
+                    consumerWorker.runWorkerThread();
+                    // == End of processing
+
+                }
+            } catch (Exception e) {
+                mainThreadExceptionData.setThreadException(e);
             }
 
-            ConsumerRecords<String, String> records = client.poll(Duration.ofMillis(100));
-            List<ConsumerRecord<String, String>> paymentsRecords = records.records(paymentsPartition);
-
-            // Scenario A: Worker thread is currently processing a batch, thus the partition is paused
-            if (isPaused) {
-                System.out.println("--> partition is paused.");
-                continue;
-            // Scenario B: No records have been returned e.g. consumer fully caught up (zero-consumer lag)
-            } else if (paymentsRecords.isEmpty()) {
-                System.out.println("--> no records returned from poll(). Skipping to next iteration.");
-                continue;
-            // Scenario C: New records have been fetched and need to be processed
-            } else {
-                System.out.println("--> new records have been fetched.");
-                handleSetupForNewBatch(records, paymentsRecords);
-
-                // == Process batch on worker thread
-                consumerWorker.setWorkerThread(dbConn, records, nextBatchSizeToInsert);
-                consumerWorker.runWorkerThread();
-                // == End of processing
-
-                    }
         }
 
         // shutdown consumer
         client.close();
-        throw consumerWorker.workerThreadExceptionData.getThreadException();
+
+        // Output the exception
+        if (!mainThreadExceptionData.isThreadWithoutException()) {
+            System.out.println("Error in main thread");
+            throw mainThreadExceptionData.getThreadException();
+        } else {
+            throw consumerWorker.workerThreadExceptionData.getThreadException();
+        }
 
     }
 
@@ -101,6 +116,8 @@ public class AppConsumer {
         System.out.printf("--> successfully processed a batch of %s records, updated committed offset to %s%n",
                 nextBatchSizeToInsert,
                 nextCommittedOffset.get(paymentsPartition).offset());
+
+        throw new RuntimeException(("MAIN THREAD HAS FAILED"));
 
     }
 
