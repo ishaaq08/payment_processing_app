@@ -9,7 +9,7 @@ import java.sql.*;
 import java.util.Random;
 
 public class App {
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Throwable {
         BrokerConfig myBrokerConfig = new BrokerConfig();
         String brokerAddress = myBrokerConfig.getBrokerAddress();
 

@@ -9,6 +9,6 @@ public class WorkerExceptionHandler implements Thread.UncaughtExceptionHandler {
 
     @Override
     public void uncaughtException(Thread t, Throwable e) {
-         workerThreadExceptionData.setThreadException(new Exception("Worker thread has failed!", e));
+         workerThreadExceptionData.setThreadException(new RuntimeException("Worker thread has failed!", e));
     }
 }

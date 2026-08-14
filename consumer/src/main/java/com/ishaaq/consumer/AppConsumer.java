@@ -1,19 +1,11 @@
 package com.ishaaq.consumer;
-
-import com.ishaaq.app.Builder;
-import com.ishaaq.app.PaymentEvent;
-import com.ishaaq.app.Topic;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
-
-import java.sql.SQLException;
 import java.time.Duration;
 import java.util.*;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class AppConsumer {
@@ -63,7 +55,7 @@ public class AppConsumer {
 
             // Scenario A: Worker thread is currently processing a batch, thus the partition is paused
             if (isPaused) {
-                System.out.println("--> ❌ partition is paused.");
+                System.out.println("--> partition is paused.");
                 continue;
             // Scenario B: No records have been returned e.g. consumer fully caught up (zero-consumer lag)
             } else if (paymentsRecords.isEmpty()) {
@@ -71,7 +63,7 @@ public class AppConsumer {
                 continue;
             // Scenario C: New records have been fetched and need to be processed
             } else {
-                System.out.println(" --> new records have been fetched.");
+                System.out.println("--> new records have been fetched.");
                 handleSetupForNewBatch(records, paymentsRecords);
 
                 // == Process batch on worker thread
@@ -80,10 +72,10 @@ public class AppConsumer {
                 // == End of processing
 
                     }
-
-//            Thread.sleep(2000);
         }
 
+        // shutdown consumer
+        client.close();
         throw consumerWorker.workerThreadExceptionData.getThreadException();
 
     }
