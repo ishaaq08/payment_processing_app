@@ -1,7 +1,6 @@
 package com.ishaaq.consumer;
 
 import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.common.protocol.types.Field;
 
 public class Worker {
     private Thread workerThread = null;
