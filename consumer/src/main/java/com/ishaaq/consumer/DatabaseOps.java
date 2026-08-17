@@ -223,4 +223,12 @@ public class DatabaseOps {
         return conn;
 
     }
+
+    private void closeDbConnection() {
+        try {
+            conn.close();
+        } catch (SQLException e) {
+            throw new RuntimeException("Error closing database connection", e);
+        }
+    }
 }
