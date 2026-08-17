@@ -84,6 +84,8 @@ public class AppConsumer {
 
         // shutdown consumer
         client.close();
+        dbConn.closeDbConnection();
+
 
         // Output the exception
         if (!mainThreadExceptionData.isThreadWithoutException()) {

@@ -224,7 +224,7 @@ public class DatabaseOps {
 
     }
 
-    private void closeDbConnection() {
+    public void closeDbConnection() {
         try {
             conn.close();
         } catch (SQLException e) {
