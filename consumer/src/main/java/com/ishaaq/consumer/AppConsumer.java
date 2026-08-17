@@ -1,31 +1,25 @@
 package com.ishaaq.consumer;
-
-import com.ishaaq.app.Builder;
-import com.ishaaq.app.PaymentEvent;
-import com.ishaaq.app.Topic;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
-
-import java.sql.SQLException;
 import java.time.Duration;
 import java.util.*;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 public class AppConsumer {
+    // Kafka-related
     private KafkaConsumer<String, String> client;
-    private DatabaseOps dbConn;
-    private ObjectMapper objectMapper = new ObjectMapper();;
-    private record RecordDetails(int payorId, int payeeId, int amount, String transactionId) {};
-    private Worker consumerWorker;
     private TopicPartition paymentsPartition = new TopicPartition("payments", 0);
     private Map<TopicPartition, OffsetAndMetadata> nextCommittedOffset;
+    // Database
+    private DatabaseOps dbConn;
+    // Processing
     private int nextBatchSizeToInsert;
     private boolean isPaused;
+    // Thread
+    private ThreadExceptionData mainThreadExceptionData = new ThreadExceptionData();
+    private Worker consumerWorker = new Worker();
 
     public AppConsumer(Map<String, Object> consumerConfigs, Properties databaseConfigs, String databaseUrl) {
         client = new KafkaConsumer<>(consumerConfigs);
@@ -49,36 +43,54 @@ public class AppConsumer {
      * which is used to adjust max.poll.interval.ms If no records are returned by poll we proceed to the next iteration
      * of the while loop.
      */
-    public void consumeMessages() throws InterruptedException {
+    public void consumeMessages() throws Exception {
         System.out.println("--> consuming message from payments-0");
 
-        while (true) {
-            handleThreadStatus();
+        while (consumerWorker.workerThreadExceptionData.isThreadWithoutException()
+                && mainThreadExceptionData.isThreadWithoutException() ) {
+            try {
+                boolean handleThreadStatusResult = handleThreadStatus();
+                if (handleThreadStatusResult) {
+                    continue;
+                }
 
-            ConsumerRecords<String, String> records = client.poll(Duration.ofMillis(100));
-            List<ConsumerRecord<String, String>> paymentsRecords = records.records(paymentsPartition);
+                ConsumerRecords<String, String> records = client.poll(Duration.ofMillis(100));
+                List<ConsumerRecord<String, String>> paymentsRecords = records.records(paymentsPartition);
 
-            // Scenario A: Worker thread is currently processing a batch, thus the partition is paused
-            if (isPaused) {
-                System.out.println("--> ❌ partition is paused.");
-                continue;
-            // Scenario B: No records have been returned e.g. consumer fully caught up (zero-consumer lag)
-            } else if (paymentsRecords.isEmpty()) {
-                System.out.println("--> no records returned from poll(). Skipping to next iteration.");
-                continue;
-            // Scenario C: New records have been fetched and need to be processed
-            } else {
-                System.out.println(" --> new records have been fetched.");
-                handleSetupForNewBatch(records, paymentsRecords);
+                // Scenario A: Worker thread is currently processing a batch, thus the partition is paused
+                if (isPaused) {
+                    System.out.println("--> partition is paused.");
+                    continue;
+                    // Scenario B: No records have been returned e.g. consumer fully caught up (zero-consumer lag)
+                } else if (paymentsRecords.isEmpty()) {
+                    System.out.println("--> no records returned from poll(). Skipping to next iteration.");
+                    continue;
+                    // Scenario C: New records have been fetched and need to be processed
+                } else {
+                    System.out.println("--> new records have been fetched.");
+                    handleSetupForNewBatch(records, paymentsRecords);
 
-                // Process batch on worker thread
-                consumerWorker = new Worker(dbConn, records, nextBatchSizeToInsert);
-                consumerWorker.runWorkerThread();
-                // == End of processing
+                    // == Process batch on worker thread
+                    consumerWorker.setWorkerThread(dbConn, records, nextBatchSizeToInsert);
+                    consumerWorker.runWorkerThread();
+                    // == End of processing
 
-                    }
+                }
+            } catch (Exception e) {
+                mainThreadExceptionData.setThreadException(e);
+            }
 
-            Thread.sleep(2000);
+        }
+
+        // shutdown consumer
+        client.close();
+
+        // Output the exception
+        if (!mainThreadExceptionData.isThreadWithoutException()) {
+            System.out.println("Error in main thread");
+            throw mainThreadExceptionData.getThreadException();
+        } else {
+            throw consumerWorker.workerThreadExceptionData.getThreadException();
         }
 
     }
@@ -99,11 +111,13 @@ public class AppConsumer {
         client.commitSync(nextCommittedOffset);
         client.resume(new ArrayList<>(Collections.singletonList(paymentsPartition)));
         isPaused = false;
-        consumerWorker = null;
+        consumerWorker.resetWorker();
 
         System.out.printf("--> successfully processed a batch of %s records, updated committed offset to %s%n",
                 nextBatchSizeToInsert,
                 nextCommittedOffset.get(paymentsPartition).offset());
+
+        throw new RuntimeException(("MAIN THREAD HAS FAILED"));
 
     }
 
@@ -133,24 +147,29 @@ public class AppConsumer {
      * consumeMessages. It is necessary to monitor the status so we know whether workerThread has completed processing.
      * If the processing is complete handleCompletedWorkerThread is called which commits the offsets and resumes the partition.
      * This must be performed from the main thread as the consumer is not thread-safe.
-     * <p>The workerThread is checked against 3 different statuses:</p>
+     * <p>4 scenarios can occur:</p>
      * <p>
      *     <ol>
-     *         <li>null: Occurs on 2 occasions: 1) First iteration of while loop before a workload has been assigned 2)
-     *         workerThread successfully finished processing a workload and has been set to null as in handleCompletedWorkerThread.</li>
-     *         <li>Thread.TERMINATED: workerThread has finished processing its workload - successfully or unsuccessfully.</li>
-     *         <li>Any other state: workerThread is currently processing a workload.</li>
+     *         <li>Scenario A: Occurs on 2 occasions 1) First iteration of while loop before a workload has been assigned 2)
+     *         No new records have been fetched.</li>
+     *         <li>Scenario B: Thread has terminated WITHOUT an exception i.e. processing of the workload was successful.</li>
+     *         <li>Scenario C: Thread has terminated WITH an exception i.e. processing of the workload failed.</li>
+     *         <li>Scenario D: Any other state in which the thread is still running or has been paused.</li>
      *     </ol>
      * </p>
+     * @return {@code true}: Scenario C has taken place. This instructs the encapsulating logic to skip to
+     * the next iteration of the while loop. The condition of the while loop will resort to false and the consumer will be
+     * shutdown. {@code false}: Scenario A, B or D has taken place.
      */
-    private void handleThreadStatus() {
+    private boolean handleThreadStatus() {
+        boolean exitLoop = false;
         /*
         Scenario A
             First iteration of while loop
             OR no new records have been fetched. The last time records were fetched and successfully processed would have
             resulted in workerThread being set to null.
          */
-        if (consumerWorker == null) {
+        if (consumerWorker.getWorkerThreadState() == null) {
             System.out.println("--> no task has been assigned to the worker thread");
         /*
         Scenario B
@@ -161,11 +180,25 @@ public class AppConsumer {
             handleCompletedWorkerThread();
         /*
         Scenario C
-            The worker thread is in any state apart from [ TERMINATED & threadWithoutException = false ]
+            This situation applies where the thread terminates with an exception after the while loop condition check
+            but before this function has been called. We want to skip to the next iteration of the loop. The loop
+            condition will be checked again. Since isThreadWithoutException will be false the while loop will exit
+            and the consumer will be shutdown.
          */
-        } else {
+        } else if (consumerWorker.getWorkerThreadState() == Thread.State.TERMINATED
+                && !consumerWorker.workerThreadExceptionData.isThreadWithoutException()) {
+
+            exitLoop = true;
+        }
+        /*
+        Scenario D
+            All other situations
+         */
+        else {
             System.out.println("--> worker thread state: " + consumerWorker.getWorkerThreadState());
         }
+
+        return exitLoop;
     }
 
 }

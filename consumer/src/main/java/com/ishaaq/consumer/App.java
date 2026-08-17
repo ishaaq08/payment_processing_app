@@ -9,7 +9,7 @@ import java.sql.*;
 import java.util.Random;
 
 public class App {
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Throwable {
         BrokerConfig myBrokerConfig = new BrokerConfig();
         String brokerAddress = myBrokerConfig.getBrokerAddress();
 
@@ -17,7 +17,7 @@ public class App {
         HashMap<String, Object> consumerConfigs = new HashMap<>();
         consumerConfigs.put("bootstrap.servers", brokerAddress);
         consumerConfigs.put("group.id", "test");
-        consumerConfigs.put("enable.auto.commit", "true");
+        consumerConfigs.put("enable.auto.commit", "false");
         consumerConfigs.put("auto.commit.interval.ms", "1000");
         consumerConfigs.put("auto.offset.reset", "earliest");
         consumerConfigs.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");

@@ -1,8 +1,8 @@
 package com.ishaaq.consumer;
 
 public class ThreadExceptionData {
-    private boolean threadWithoutException = true;
-    private Exception threadException = null;
+    private volatile boolean threadWithoutException = true;
+    private volatile Exception threadException = null;
 
     // default constructor implicitly applied
 
@@ -18,7 +18,7 @@ public class ThreadExceptionData {
 
     // Setter
     public void setThreadException(Exception e) {
-        threadWithoutException = true;
+        threadWithoutException = false;
         threadException = e;
     }
 }
