@@ -36,11 +36,6 @@ public class Task implements Runnable{
             );
         }
 
-        try {
-            Thread.sleep(2000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
         long elapsedMs = (System.nanoTime() - start) / 1_000_000;
         dbConn.insertBatchMetrics(nextBatchSizeToInsert, elapsedMs);
     }
